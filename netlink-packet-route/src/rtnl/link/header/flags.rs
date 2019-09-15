@@ -39,35 +39,35 @@ pub const IFF_AUTOMEDIA: u32 = libc::IFF_AUTOMEDIA as u32;
 // pub const IFF_NOTRAILERS: u32 = libc::IFF_NOTRAILERS as u32;
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
-pub struct LinkFlags(pub u32);
+pub struct Flags(pub u32);
 
-impl From<u32> for LinkFlags {
+impl From<u32> for Flags {
     fn from(flags: u32) -> Self {
-        LinkFlags(flags)
+        Flags(flags)
     }
 }
 
-impl<'a> From<&'a LinkFlags> for u32 {
-    fn from(flags: &'a LinkFlags) -> u32 {
+impl<'a> From<&'a Flags> for u32 {
+    fn from(flags: &'a Flags) -> u32 {
         flags.0
     }
 }
 
-impl From<LinkFlags> for u32 {
-    fn from(flags: LinkFlags) -> u32 {
+impl From<Flags> for u32 {
+    fn from(flags: Flags) -> u32 {
         flags.0
     }
 }
 
-impl Default for LinkFlags {
+impl Default for Flags {
     fn default() -> Self {
-        LinkFlags::new()
+        Flags::new()
     }
 }
 
-impl LinkFlags {
+impl Flags {
     pub fn new() -> Self {
-        LinkFlags(0)
+        Flags(0)
     }
 
     /// Set the `IFF_UP` flag

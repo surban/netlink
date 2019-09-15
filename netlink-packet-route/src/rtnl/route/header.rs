@@ -1,6 +1,6 @@
 use crate::{
     rtnl::{
-        route::{RouteBuffer, ROUTE_HEADER_LEN},
+        route::{MessageBuffer, ROUTE_HEADER_LEN},
         traits::{Emitable, Parseable},
     },
     DecodeError,
@@ -81,13 +81,13 @@ pub const RTM_F_FIB_MATCH: u32 = 8192;
 ///
 /// ```rust
 /// # extern crate netlink_packet_route;
-/// # use netlink_packet_route::rtnl::route::RouteKind;
+/// # use netlink_packet_route::rtnl::route::Kind;
 /// #
 /// # fn main() {
-/// assert_eq!(RouteKind::default(), RouteKind::Unspec);
+/// assert_eq!(Kind::default(), Kind::Unspec);
 /// # }
 #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
-pub enum RouteKind {
+pub enum Kind {
     /// Unknown route
     Unspec,
     /// A gateway or direct route
@@ -115,15 +115,15 @@ pub enum RouteKind {
     Unknown(u8),
 }
 
-impl Default for RouteKind {
+impl Default for Kind {
     fn default() -> Self {
-        RouteKind::Unspec
+        Kind::Unspec
     }
 }
 
-impl From<RouteKind> for u8 {
-    fn from(value: RouteKind) -> u8 {
-        use self::RouteKind::*;
+impl From<Kind> for u8 {
+    fn from(value: Kind) -> u8 {
+        use self::Kind::*;
         match value {
             Unspec => RTN_UNSPEC,
             Unicast => RTN_UNICAST,
@@ -142,9 +142,9 @@ impl From<RouteKind> for u8 {
     }
 }
 
-impl From<u8> for RouteKind {
-    fn from(value: u8) -> RouteKind {
-        use self::RouteKind::*;
+impl From<u8> for Kind {
+    fn from(value: u8) -> Kind {
+        use self::Kind::*;
         match value {
             RTN_UNSPEC => Unspec,
             RTN_UNICAST => Unicast,
@@ -167,13 +167,13 @@ impl From<u8> for RouteKind {
 ///
 /// ```rust
 /// # extern crate netlink_packet_route;
-/// # use netlink_packet_route::rtnl::route::RouteProtocol;
+/// # use netlink_packet_route::rtnl::route::Protocol;
 /// #
 /// # fn main() {
-/// assert_eq!(RouteProtocol::default(), RouteProtocol::Unspec);
+/// assert_eq!(Protocol::default(), Protocol::Unspec);
 /// # }
 #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
-pub enum RouteProtocol {
+pub enum Protocol {
     /// Unknown
     Unspec,
     /// Route was learnt by an ICMP redirect
@@ -198,15 +198,15 @@ pub enum RouteProtocol {
     Unknown(u8),
 }
 
-impl Default for RouteProtocol {
+impl Default for Protocol {
     fn default() -> Self {
-        RouteProtocol::Unspec
+        Protocol::Unspec
     }
 }
 
-impl From<RouteProtocol> for u8 {
-    fn from(value: RouteProtocol) -> u8 {
-        use self::RouteProtocol::*;
+impl From<Protocol> for u8 {
+    fn from(value: Protocol) -> u8 {
+        use self::Protocol::*;
         match value {
             Unspec => RTPROT_UNSPEC,
             Redirect => RTPROT_REDIRECT,
@@ -229,9 +229,9 @@ impl From<RouteProtocol> for u8 {
     }
 }
 
-impl From<u8> for RouteProtocol {
-    fn from(value: u8) -> RouteProtocol {
-        use self::RouteProtocol::*;
+impl From<u8> for Protocol {
+    fn from(value: u8) -> Protocol {
+        use self::Protocol::*;
         match value {
             RTPROT_UNSPEC => Unspec,
             RTPROT_REDIRECT => Redirect,
@@ -258,13 +258,13 @@ impl From<u8> for RouteProtocol {
 ///
 /// ```rust
 /// # extern crate netlink_packet_route;
-/// # use netlink_packet_route::rtnl::route::RouteScope;
+/// # use netlink_packet_route::rtnl::route::Scope;
 /// #
 /// # fn main() {
-/// assert_eq!(RouteScope::default(), RouteScope::Universe);
+/// assert_eq!(Scope::default(), Scope::Universe);
 /// # }
 #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
-pub enum RouteScope {
+pub enum Scope {
     /// Global route
     Universe,
     /// Interior route in the local autonomous system
@@ -278,15 +278,15 @@ pub enum RouteScope {
     Unknown(u8),
 }
 
-impl Default for RouteScope {
+impl Default for Scope {
     fn default() -> Self {
-        RouteScope::Universe
+        Scope::Universe
     }
 }
 
-impl From<RouteScope> for u8 {
-    fn from(value: RouteScope) -> u8 {
-        use self::RouteScope::*;
+impl From<Scope> for u8 {
+    fn from(value: Scope) -> u8 {
+        use self::Scope::*;
         match value {
             Universe => RT_SCOPE_UNIVERSE,
             Site => RT_SCOPE_SITE,
@@ -298,9 +298,9 @@ impl From<RouteScope> for u8 {
     }
 }
 
-impl From<u8> for RouteScope {
-    fn from(value: u8) -> RouteScope {
-        use self::RouteScope::*;
+impl From<u8> for Scope {
+    fn from(value: u8) -> Scope {
+        use self::Scope::*;
         match value {
             RT_SCOPE_UNIVERSE => Universe,
             RT_SCOPE_SITE => Site,
@@ -316,13 +316,13 @@ impl From<u8> for RouteScope {
 ///
 /// ```rust
 /// # extern crate netlink_packet_route;
-/// # use netlink_packet_route::rtnl::route::RouteTable;
+/// # use netlink_packet_route::rtnl::route::Table;
 /// #
 /// # fn main() {
-/// assert_eq!(RouteTable::default(), RouteTable::Unspec);
+/// assert_eq!(Table::default(), Table::Unspec);
 /// # }
 #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
-pub enum RouteTable {
+pub enum Table {
     Unspec,
     Compat,
     Default,
@@ -331,15 +331,15 @@ pub enum RouteTable {
     Unknown(u8),
 }
 
-impl Default for RouteTable {
+impl Default for Table {
     fn default() -> Self {
-        RouteTable::Unspec
+        Table::Unspec
     }
 }
 
-impl From<RouteTable> for u8 {
-    fn from(value: RouteTable) -> u8 {
-        use self::RouteTable::*;
+impl From<Table> for u8 {
+    fn from(value: Table) -> u8 {
+        use self::Table::*;
         match value {
             Unspec => RT_TABLE_UNSPEC,
             Compat => RT_TABLE_COMPAT,
@@ -351,9 +351,9 @@ impl From<RouteTable> for u8 {
     }
 }
 
-impl From<u8> for RouteTable {
-    fn from(value: u8) -> RouteTable {
-        use self::RouteTable::*;
+impl From<u8> for Table {
+    fn from(value: u8) -> Table {
+        use self::Table::*;
         match value {
             RT_TABLE_UNSPEC => Unspec,
             RT_TABLE_COMPAT => Compat,
@@ -366,21 +366,21 @@ impl From<u8> for RouteTable {
 }
 
 #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone, Default)]
-pub struct RouteFlags(u32);
+pub struct Flags(u32);
 
-impl From<u32> for RouteFlags {
+impl From<u32> for Flags {
     fn from(value: u32) -> Self {
-        RouteFlags(value)
+        Flags(value)
     }
 }
 
-impl From<RouteFlags> for u32 {
-    fn from(value: RouteFlags) -> Self {
+impl From<Flags> for u32 {
+    fn from(value: Flags) -> Self {
         value.0
     }
 }
 
-impl RouteFlags {
+impl Flags {
     /// Create a new empty flags field (no flag is set)
     pub fn new() -> Self {
         Self::default()
@@ -470,30 +470,30 @@ impl RouteFlags {
 ///
 /// ```rust
 /// extern crate netlink_packet_route;
-/// use netlink_packet_route::rtnl::route::{RouteHeader, RouteFlags, RouteProtocol, RouteTable, RouteScope, RouteKind};
+/// use netlink_packet_route::rtnl::route::{Header, Flags, Protocol, Table, Scope, Kind};
 ///
 /// fn main() {
-///     let mut hdr = RouteHeader::new();
+///     let mut hdr = Header::new();
 ///     assert_eq!(hdr.address_family, 0u8);
 ///     assert_eq!(hdr.destination_length, 0u8);
 ///     assert_eq!(hdr.source_length, 0u8);
 ///     assert_eq!(hdr.tos, 0u8);
-///     assert_eq!(hdr.table, RouteTable::Unspec);
-///     assert_eq!(hdr.protocol, RouteProtocol::Unspec);
-///     assert_eq!(hdr.scope, RouteScope::Universe);
-///     assert_eq!(hdr.kind, RouteKind::Unspec);
+///     assert_eq!(hdr.table, Table::Unspec);
+///     assert_eq!(hdr.protocol, Protocol::Unspec);
+///     assert_eq!(hdr.scope, Scope::Universe);
+///     assert_eq!(hdr.kind, Kind::Unspec);
 ///     assert_eq!(u32::from(hdr.flags), 0u32);
 ///
 ///     hdr.destination_length = 8;
-///     hdr.table = RouteTable::Default;
-///     hdr.protocol = RouteProtocol::Kernel;
-///     hdr.scope = RouteScope::Nowhere;
+///     hdr.table = Table::Default;
+///     hdr.protocol = Protocol::Kernel;
+///     hdr.scope = Scope::Nowhere;
 ///
 ///     // ...
 /// }
 /// ```
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Default)]
-pub struct RouteHeader {
+pub struct Header {
     /// Address family of the route
     pub address_family: u8,
     /// Length of destination
@@ -504,46 +504,46 @@ pub struct RouteHeader {
     pub tos: u8,
 
     /// The routing table ID
-    pub table: RouteTable,
+    pub table: Table,
     /// The routing protocol
-    pub protocol: RouteProtocol,
+    pub protocol: Protocol,
     /// Distance to the destination
-    pub scope: RouteScope,
+    pub scope: Scope,
     /// Route type
-    pub kind: RouteKind,
+    pub kind: Kind,
 
-    pub flags: RouteFlags,
+    pub flags: Flags,
 }
 
-impl RouteHeader {
+impl Header {
     pub fn new() -> Self {
         Default::default()
     }
 }
 
-impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<RouteHeader> for RouteBuffer<&'a T> {
-    fn parse(&self) -> Result<RouteHeader, DecodeError> {
-        Ok(RouteHeader {
-            address_family: self.address_family(),
-            destination_length: self.destination_length(),
-            source_length: self.source_length(),
-            tos: self.tos(),
-            table: self.table().into(),
-            protocol: self.protocol().into(),
-            scope: self.scope().into(),
-            kind: self.kind().into(),
-            flags: self.flags().into(),
+impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<MessageBuffer<&'a T>> for Header {
+    fn parse(buf: &MessageBuffer<&'a T>) -> Result<Self, DecodeError> {
+        Ok(Header {
+            address_family: buf.address_family(),
+            destination_length: buf.destination_length(),
+            source_length: buf.source_length(),
+            tos: buf.tos(),
+            table: buf.table().into(),
+            protocol: buf.protocol().into(),
+            scope: buf.scope().into(),
+            kind: buf.kind().into(),
+            flags: buf.flags().into(),
         })
     }
 }
 
-impl Emitable for RouteHeader {
+impl Emitable for Header {
     fn buffer_len(&self) -> usize {
         ROUTE_HEADER_LEN
     }
 
     fn emit(&self, buffer: &mut [u8]) {
-        let mut buffer = RouteBuffer::new(buffer);
+        let mut buffer = MessageBuffer::new(buffer);
         buffer.set_address_family(self.address_family);
         buffer.set_destination_length(self.destination_length);
         buffer.set_source_length(self.source_length);

@@ -67,7 +67,7 @@ pub const ARPHRD_VOID: u16 = 65535;
 pub const ARPHRD_NONE: u16 = 65534;
 
 #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
-pub enum LinkLayerType {
+pub enum LayerType {
     /// Link type is `ARPHRD_NETROM`
     Netrom,
     /// Link type is `ARPHRD_ETHER`
@@ -204,9 +204,9 @@ pub enum LinkLayerType {
     Other(u16),
 }
 
-impl From<LinkLayerType> for u16 {
-    fn from(llt: LinkLayerType) -> u16 {
-        use self::LinkLayerType::*;
+impl From<LayerType> for u16 {
+    fn from(llt: LayerType) -> u16 {
+        use self::LayerType::*;
         match llt {
             Netrom => ARPHRD_NETROM,
             Ether => ARPHRD_ETHER,
@@ -279,82 +279,82 @@ impl From<LinkLayerType> for u16 {
     }
 }
 
-impl From<u16> for LinkLayerType {
+impl From<u16> for LayerType {
     fn from(v: u16) -> Self {
         match v {
-            ARPHRD_NETROM => LinkLayerType::Netrom,
-            ARPHRD_ETHER => LinkLayerType::Ether,
-            ARPHRD_EETHER => LinkLayerType::Eether,
-            ARPHRD_AX25 => LinkLayerType::Ax25,
-            ARPHRD_PRONET => LinkLayerType::Pronet,
-            ARPHRD_CHAOS => LinkLayerType::Chaos,
-            ARPHRD_IEEE802 => LinkLayerType::Ieee802,
-            ARPHRD_ARCNET => LinkLayerType::Arcnet,
-            ARPHRD_APPLETLK => LinkLayerType::Appletlk,
-            ARPHRD_DLCI => LinkLayerType::Dlci,
-            ARPHRD_ATM => LinkLayerType::Atm,
-            ARPHRD_METRICOM => LinkLayerType::Metricom,
-            ARPHRD_IEEE1394 => LinkLayerType::Ieee1394,
-            ARPHRD_EUI64 => LinkLayerType::Eui64,
-            ARPHRD_INFINIBAND => LinkLayerType::Infiniband,
-            ARPHRD_SLIP => LinkLayerType::Slip,
-            ARPHRD_CSLIP => LinkLayerType::Cslip,
-            ARPHRD_SLIP6 => LinkLayerType::Slip6,
-            ARPHRD_CSLIP6 => LinkLayerType::Cslip6,
-            ARPHRD_RSRVD => LinkLayerType::Rsrvd,
-            ARPHRD_ADAPT => LinkLayerType::Adapt,
-            ARPHRD_ROSE => LinkLayerType::Rose,
-            ARPHRD_X25 => LinkLayerType::X25,
-            ARPHRD_HWX25 => LinkLayerType::Hwx25,
-            ARPHRD_CAN => LinkLayerType::Can,
-            ARPHRD_PPP => LinkLayerType::Ppp,
-            ARPHRD_HDLC => LinkLayerType::Hdlc,
-            ARPHRD_LAPB => LinkLayerType::Lapb,
-            ARPHRD_DDCMP => LinkLayerType::Ddcmp,
-            ARPHRD_RAWHDLC => LinkLayerType::Rawhdlc,
-            ARPHRD_RAWIP => LinkLayerType::Rawip,
-            ARPHRD_TUNNEL => LinkLayerType::Tunnel,
-            ARPHRD_TUNNEL6 => LinkLayerType::Tunnel6,
-            ARPHRD_FRAD => LinkLayerType::Frad,
-            ARPHRD_SKIP => LinkLayerType::Skip,
-            ARPHRD_LOOPBACK => LinkLayerType::Loopback,
-            ARPHRD_LOCALTLK => LinkLayerType::Localtlk,
-            ARPHRD_FDDI => LinkLayerType::Fddi,
-            ARPHRD_BIF => LinkLayerType::Bif,
-            ARPHRD_SIT => LinkLayerType::Sit,
-            ARPHRD_IPDDP => LinkLayerType::Ipddp,
-            ARPHRD_IPGRE => LinkLayerType::IpGre,
-            ARPHRD_PIMREG => LinkLayerType::Pimreg,
-            ARPHRD_HIPPI => LinkLayerType::Hippi,
-            ARPHRD_ASH => LinkLayerType::Ash,
-            ARPHRD_ECONET => LinkLayerType::Econet,
-            ARPHRD_IRDA => LinkLayerType::Irda,
-            ARPHRD_FCPP => LinkLayerType::Fcpp,
-            ARPHRD_FCAL => LinkLayerType::Fcal,
-            ARPHRD_FCPL => LinkLayerType::Fcpl,
-            ARPHRD_FCFABRIC => LinkLayerType::Fcfabric,
-            ARPHRD_IEEE802_TR => LinkLayerType::Ieee802Tr,
-            ARPHRD_IEEE80211 => LinkLayerType::Ieee80211,
-            ARPHRD_IEEE80211_PRISM => LinkLayerType::Ieee80211Prism,
-            ARPHRD_IEEE80211_RADIOTAP => LinkLayerType::Ieee80211Radiotap,
-            ARPHRD_IEEE802154 => LinkLayerType::Ieee802154,
-            ARPHRD_IEEE802154_MONITOR => LinkLayerType::Ieee802154Monitor,
-            ARPHRD_PHONET => LinkLayerType::Phonet,
-            ARPHRD_PHONET_PIPE => LinkLayerType::PhonetPipe,
-            ARPHRD_CAIF => LinkLayerType::Caif,
-            ARPHRD_IP6GRE => LinkLayerType::Ip6Gre,
-            ARPHRD_NETLINK => LinkLayerType::Netlink,
-            ARPHRD_6LOWPAN => LinkLayerType::SixLowpan,
-            ARPHRD_VSOCKMON => LinkLayerType::Vsockmon,
-            ARPHRD_VOID => LinkLayerType::Void,
-            ARPHRD_NONE => LinkLayerType::None,
-            other => LinkLayerType::Other(other),
+            ARPHRD_NETROM => LayerType::Netrom,
+            ARPHRD_ETHER => LayerType::Ether,
+            ARPHRD_EETHER => LayerType::Eether,
+            ARPHRD_AX25 => LayerType::Ax25,
+            ARPHRD_PRONET => LayerType::Pronet,
+            ARPHRD_CHAOS => LayerType::Chaos,
+            ARPHRD_IEEE802 => LayerType::Ieee802,
+            ARPHRD_ARCNET => LayerType::Arcnet,
+            ARPHRD_APPLETLK => LayerType::Appletlk,
+            ARPHRD_DLCI => LayerType::Dlci,
+            ARPHRD_ATM => LayerType::Atm,
+            ARPHRD_METRICOM => LayerType::Metricom,
+            ARPHRD_IEEE1394 => LayerType::Ieee1394,
+            ARPHRD_EUI64 => LayerType::Eui64,
+            ARPHRD_INFINIBAND => LayerType::Infiniband,
+            ARPHRD_SLIP => LayerType::Slip,
+            ARPHRD_CSLIP => LayerType::Cslip,
+            ARPHRD_SLIP6 => LayerType::Slip6,
+            ARPHRD_CSLIP6 => LayerType::Cslip6,
+            ARPHRD_RSRVD => LayerType::Rsrvd,
+            ARPHRD_ADAPT => LayerType::Adapt,
+            ARPHRD_ROSE => LayerType::Rose,
+            ARPHRD_X25 => LayerType::X25,
+            ARPHRD_HWX25 => LayerType::Hwx25,
+            ARPHRD_CAN => LayerType::Can,
+            ARPHRD_PPP => LayerType::Ppp,
+            ARPHRD_HDLC => LayerType::Hdlc,
+            ARPHRD_LAPB => LayerType::Lapb,
+            ARPHRD_DDCMP => LayerType::Ddcmp,
+            ARPHRD_RAWHDLC => LayerType::Rawhdlc,
+            ARPHRD_RAWIP => LayerType::Rawip,
+            ARPHRD_TUNNEL => LayerType::Tunnel,
+            ARPHRD_TUNNEL6 => LayerType::Tunnel6,
+            ARPHRD_FRAD => LayerType::Frad,
+            ARPHRD_SKIP => LayerType::Skip,
+            ARPHRD_LOOPBACK => LayerType::Loopback,
+            ARPHRD_LOCALTLK => LayerType::Localtlk,
+            ARPHRD_FDDI => LayerType::Fddi,
+            ARPHRD_BIF => LayerType::Bif,
+            ARPHRD_SIT => LayerType::Sit,
+            ARPHRD_IPDDP => LayerType::Ipddp,
+            ARPHRD_IPGRE => LayerType::IpGre,
+            ARPHRD_PIMREG => LayerType::Pimreg,
+            ARPHRD_HIPPI => LayerType::Hippi,
+            ARPHRD_ASH => LayerType::Ash,
+            ARPHRD_ECONET => LayerType::Econet,
+            ARPHRD_IRDA => LayerType::Irda,
+            ARPHRD_FCPP => LayerType::Fcpp,
+            ARPHRD_FCAL => LayerType::Fcal,
+            ARPHRD_FCPL => LayerType::Fcpl,
+            ARPHRD_FCFABRIC => LayerType::Fcfabric,
+            ARPHRD_IEEE802_TR => LayerType::Ieee802Tr,
+            ARPHRD_IEEE80211 => LayerType::Ieee80211,
+            ARPHRD_IEEE80211_PRISM => LayerType::Ieee80211Prism,
+            ARPHRD_IEEE80211_RADIOTAP => LayerType::Ieee80211Radiotap,
+            ARPHRD_IEEE802154 => LayerType::Ieee802154,
+            ARPHRD_IEEE802154_MONITOR => LayerType::Ieee802154Monitor,
+            ARPHRD_PHONET => LayerType::Phonet,
+            ARPHRD_PHONET_PIPE => LayerType::PhonetPipe,
+            ARPHRD_CAIF => LayerType::Caif,
+            ARPHRD_IP6GRE => LayerType::Ip6Gre,
+            ARPHRD_NETLINK => LayerType::Netlink,
+            ARPHRD_6LOWPAN => LayerType::SixLowpan,
+            ARPHRD_VSOCKMON => LayerType::Vsockmon,
+            ARPHRD_VOID => LayerType::Void,
+            ARPHRD_NONE => LayerType::None,
+            other => LayerType::Other(other),
         }
     }
 }
 
-impl Default for LinkLayerType {
+impl Default for LayerType {
     fn default() -> Self {
-        LinkLayerType::Ether
+        LayerType::Ether
     }
 }

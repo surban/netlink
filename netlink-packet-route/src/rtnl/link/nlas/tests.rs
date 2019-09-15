@@ -178,15 +178,15 @@ fn get_nlas() -> impl Iterator<Item = Result<NlaBuffer<&'static [u8]>, DecodeErr
 }
 
 lazy_static! {
-    static ref PARSED_AF_INET6: LinkAfSpecInetNla = LinkAfSpecInetNla::Inet6(vec![
-        LinkAfInet6Nla::Flags(2147483648),
-        LinkAfInet6Nla::CacheInfo(LinkInet6CacheInfo {
+    static ref PARSED_AF_INET6: AfSpecInetNla = AfSpecInetNla::Inet6(vec![
+        AfInet6Nla::Flags(2147483648),
+        AfInet6Nla::CacheInfo(Inet6CacheInfo {
             max_reasm_len: 65535,
             tstamp: 175,
             reachable_time: 25730,
             retrans_time: 1000,
         }),
-        LinkAfInet6Nla::DevConf(Box::new(LinkInet6DevConf {
+        AfInet6Nla::DevConf(Box::new(Inet6DevConf {
             forwarding: 0,
             hoplimit: 64,
             mtu6: 65536,
@@ -239,7 +239,7 @@ lazy_static! {
             accept_ra_rt_info_min_plen: 0,
             ndisc_tclass: 0,
         })),
-        LinkAfInet6Nla::Stats(Box::new(LinkInet6Stats {
+        AfInet6Nla::Stats(Box::new(Inet6Stats {
             num: 36,
             in_pkts: 6,
             in_octets: 420,
@@ -277,7 +277,7 @@ lazy_static! {
             in_ect0_pkts: 0,
             in_ce_pkts: 0,
         })),
-        LinkAfInet6Nla::IcmpStats(LinkIcmp6Stats {
+        AfInet6Nla::IcmpStats(Icmp6Stats {
             num: 6,
             in_msgs: 0,
             in_errors: 0,
@@ -285,14 +285,14 @@ lazy_static! {
             out_errors: 0,
             csum_errors: 0,
         }),
-        LinkAfInet6Nla::Token([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
-        LinkAfInet6Nla::AddrGenMode(0),
+        AfInet6Nla::Token([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
+        AfInet6Nla::AddrGenMode(0),
     ]);
 }
 
 lazy_static! {
-    static ref PARSED_AF_INET: LinkAfSpecInetNla =
-        LinkAfSpecInetNla::Inet(vec![LinkAfInetNla::DevConf(LinkInetDevConf {
+    static ref PARSED_AF_INET: AfSpecInetNla =
+        AfSpecInetNla::Inet(vec![AfInetNla::DevConf(InetDevConf {
             forwarding: 1,
             mc_forwarding: 0,
             proxy_arp: 0,
@@ -345,7 +345,7 @@ fn parse_af_inet() {
     assert_eq!(inet_buf.value().len(), 128);
 
     // parsing check
-    let parsed: LinkAfSpecInetNla = inet_buf.parse().unwrap();
+    let parsed: AfSpecInetNla = inet_buf.parse().unwrap();
     assert_eq!(parsed, *PARSED_AF_INET);
 }
 
@@ -399,7 +399,7 @@ fn parse_af_inet6() {
     assert_eq!(inet6_buf.length(), 612);
     assert_eq!(inet6_buf.kind(), AF_INET6);
     assert_eq!(inet6_buf.value().len(), 608);
-    let parsed: LinkAfSpecInetNla = inet6_buf.parse().unwrap();
+    let parsed: AfSpecInetNla = inet6_buf.parse().unwrap();
 
     assert_eq!(parsed, *PARSED_AF_INET6);
 

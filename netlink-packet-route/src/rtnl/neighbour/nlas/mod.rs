@@ -1,14 +1,12 @@
 mod cache_info;
 pub use self::cache_info::*;
 
-use std::mem::size_of;
-
 use byteorder::{ByteOrder, NativeEndian};
 use failure::ResultExt;
 
 use crate::{
     rtnl::{
-        nla::{DefaultNla, Nla, NlaBuffer},
+        nla::{self, DefaultNla, NlaBuffer},
         traits::{Emitable, Parseable},
         utils::{parse_u16, parse_u32},
     },
@@ -29,11 +27,11 @@ pub const NDA_LINK_NETNSID: u16 = 10;
 pub const NDA_SRC_VNI: u16 = 11;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub enum NeighbourNla {
+pub enum Nla {
     Unspec(Vec<u8>),
     Destination(Vec<u8>),
     LinkLocalAddress(Vec<u8>),
-    CacheInfo(NeighbourCacheInfo),
+    CacheInfo(CacheInfo),
     Probes(Vec<u8>),
     Vlan(u16),
     Port(Vec<u8>),
@@ -45,10 +43,10 @@ pub enum NeighbourNla {
     Other(DefaultNla),
 }
 
-impl Nla for NeighbourNla {
+impl nla::Nla for Nla {
     #[rustfmt::skip]
     fn value_len(&self) -> usize {
-        use self::NeighbourNla::*;
+        use self::Nla::*;
         match *self {
             Unspec(ref bytes)
             | Destination(ref bytes)
@@ -58,17 +56,17 @@ impl Nla for NeighbourNla {
             | Master(ref bytes)
             | LinkNetNsId(ref bytes) => bytes.len(),
             CacheInfo(_) => NEIGHBOUR_CACHE_INFO_LEN,
-            Vlan(_) => size_of::<u16>(),
+            Vlan(_) => 2,
             Vni(_)
             | IfIndex(_)
-            | SourceVni(_) => size_of::<u32>(),
+            | SourceVni(_) => 4,
             Other(ref attr) => attr.value_len(),
         }
     }
 
     #[rustfmt::skip]
     fn emit_value(&self, buffer: &mut [u8]) {
-        use self::NeighbourNla::*;
+        use self::Nla::*;
         match *self {
             Unspec(ref bytes)
             | Destination(ref bytes)
@@ -87,7 +85,7 @@ impl Nla for NeighbourNla {
     }
 
     fn kind(&self) -> u16 {
-        use self::NeighbourNla::*;
+        use self::Nla::*;
         match *self {
             Unspec(_) => NDA_UNSPEC,
             Destination(_) => NDA_DST,
@@ -106,19 +104,22 @@ impl Nla for NeighbourNla {
     }
 }
 
-impl<'buffer, T: AsRef<[u8]> + ?Sized> Parseable<NeighbourNla> for NlaBuffer<&'buffer T> {
-    fn parse(&self) -> Result<NeighbourNla, DecodeError> {
-        use self::NeighbourNla::*;
-        let payload = self.value();
-        Ok(match self.kind() {
+impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<NlaBuffer<&'a T>> for Nla {
+    fn parse(buf: &NlaBuffer<&'a T>) -> Result<Self, DecodeError> {
+        use self::Nla::*;
+
+        let payload = buf.value();
+        Ok(match buf.kind() {
             NDA_UNSPEC => Unspec(payload.to_vec()),
             NDA_DST => Destination(payload.to_vec()),
             NDA_LLADDR => LinkLocalAddress(payload.to_vec()),
-            NDA_CACHEINFO => CacheInfo(
-                NeighbourCacheInfoBuffer::new(payload)
-                    .parse()
-                    .context("invalid NDA_CACHEINFO value")?,
-            ),
+            NDA_CACHEINFO => {
+                let buf =
+                    CacheInfoBuffer::new_checked(payload).context("invalid NDA_CACHEINFO value")?;
+                CacheInfo(
+                    cache_info::CacheInfo::parse(&buf).context("invalid NDA_CACHEINFO value")?,
+                )
+            }
             NDA_PROBES => Probes(payload.to_vec()),
             NDA_VLAN => Vlan(parse_u16(payload)?),
             NDA_PORT => Port(payload.to_vec()),
@@ -127,10 +128,7 @@ impl<'buffer, T: AsRef<[u8]> + ?Sized> Parseable<NeighbourNla> for NlaBuffer<&'b
             NDA_MASTER => Master(payload.to_vec()),
             NDA_LINK_NETNSID => LinkNetNsId(payload.to_vec()),
             NDA_SRC_VNI => SourceVni(parse_u32(payload)?),
-            _ => Other(
-                <Self as Parseable<DefaultNla>>::parse(self)
-                    .context("invalid link NLA value (unknown type)")?,
-            ),
+            _ => Other(DefaultNla::parse(buf).context("invalid link NLA value (unknown type)")?),
         })
     }
 }

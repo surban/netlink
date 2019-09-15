@@ -25,7 +25,6 @@ pub use self::link_state::*;
 #[cfg(test)]
 mod tests;
 
-use std::mem::size_of;
 use std::os::unix::io::RawFd;
 
 use byteorder::{ByteOrder, NativeEndian};
@@ -34,7 +33,7 @@ use failure::ResultExt;
 use crate::{
     rtnl::{
         link::address_families::*,
-        nla::{DefaultNla, Nla, NlaBuffer, NlasIterator},
+        nla::{self, DefaultNla, NlaBuffer, NlasIterator},
         traits::{Emitable, Parseable, ParseableParametrized},
         utils::{parse_i32, parse_string, parse_u32, parse_u8},
     },
@@ -106,7 +105,7 @@ pub const IFLA_INET6_TOKEN: u16 = 7;
 pub const IFLA_INET6_ADDR_GEN_MODE: u16 = 8;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub enum LinkNla {
+pub enum Nla {
     // Vec<u8>
     Unspec(Vec<u8>),
     Cost(Vec<u8>),
@@ -125,7 +124,7 @@ pub enum LinkNla {
     CarrierUpCount(Vec<u8>),
     CarrierDownCount(Vec<u8>),
     NewIfIndex(Vec<u8>),
-    LinkInfo(Vec<LinkInfo>),
+    Info(Vec<Info>),
     Wireless(Vec<u8>),
     ProtoInfo(Vec<u8>),
     // mac address (use to be [u8; 6] but it turns out MAC != HW address, for instance for IP over
@@ -142,7 +141,7 @@ pub enum LinkNla {
     IfAlias(String),
     PhysPortName(String),
     // byte
-    LinkMode(u8),
+    Mode(u8),
     Carrier(u8),
     ProtoDown(u8),
     // u32
@@ -162,24 +161,24 @@ pub enum LinkNla {
     GsoMaxSegs(u32),
     GsoMaxSize(u32),
     // i32
-    LinkNetnsId(i32),
+    NetnsId(i32),
     // custom
-    OperState(LinkState),
-    Stats(LinkStats),
-    Stats64(LinkStats64),
-    Map(LinkMap),
+    OperState(State),
+    Stats(Stats),
+    Stats64(Stats64),
+    Map(Map),
     // AF_SPEC (the type of af_spec depends on the interface family of the message)
-    AfSpecInet(Vec<LinkAfSpecInetNla>),
-    // AfSpecBridge(Vec<LinkAfSpecBridgeNla>),
+    AfSpecInet(Vec<AfSpecInet>),
+    // AfSpecBridge(Vec<AfSpecBridgeNla>),
     AfSpecBridge(Vec<u8>),
     AfSpecUnknown(Vec<u8>),
     Other(DefaultNla),
 }
 
-impl Nla for LinkNla {
+impl nla::Nla for Nla {
     #[rustfmt::skip]
     fn value_len(&self) -> usize {
-        use self::LinkNla::*;
+        use self::Nla::*;
         match *self {
             // Vec<u8>
             Unspec(ref bytes)
@@ -215,10 +214,10 @@ impl Nla for LinkNla {
                 => string.as_bytes().len() + 1,
 
             // u8
-            LinkMode(_)
+            Mode(_)
                 | Carrier(_)
                 | ProtoDown(_)
-                => size_of::<u8>(),
+                => 1,
 
             // u32 and i32
             Mtu(_)
@@ -236,14 +235,14 @@ impl Nla for LinkNla {
                 | CarrierChanges(_)
                 | GsoMaxSegs(_)
                 | GsoMaxSize(_)
-                | LinkNetnsId(_) => size_of::<u32>(),
+                | NetnsId(_) => 4,
 
             // Defaults
-            OperState(_) => size_of::<u8>(),
+            OperState(_) => 1,
             Map(_) => LINK_MAP_LEN,
             Stats(_) => LINK_STATS_LEN,
             Stats64(_) => LINK_STATS64_LEN,
-            LinkInfo(ref nlas) => nlas.as_slice().buffer_len(),
+            Info(ref nlas) => nlas.as_slice().buffer_len(),
             AfSpecInet(ref nlas) => nlas.as_slice().buffer_len(),
             // AfSpecBridge(ref nlas) => nlas.as_slice().buffer_len(),
             Other(ref attr)  => attr.value_len(),
@@ -252,7 +251,7 @@ impl Nla for LinkNla {
 
     #[rustfmt::skip]
     fn emit_value(&self, buffer: &mut [u8]) {
-        use self::LinkNla::*;
+        use self::Nla::*;
         match *self {
             // Vec<u8>
             Unspec(ref bytes)
@@ -293,7 +292,7 @@ impl Nla for LinkNla {
                 }
 
             // u8
-            LinkMode(ref val)
+            Mode(ref val)
                 | Carrier(ref val)
                 | ProtoDown(ref val)
                 => buffer[0] = *val,
@@ -315,7 +314,7 @@ impl Nla for LinkNla {
                 | GsoMaxSize(ref value)
                 => NativeEndian::write_u32(buffer, *value),
 
-            LinkNetnsId(ref value)
+            NetnsId(ref value)
                 | NetNsFd(ref value)
                 => NativeEndian::write_i32(buffer, *value),
 
@@ -323,7 +322,7 @@ impl Nla for LinkNla {
             Map(ref map) => map.emit(buffer),
             Stats(ref stats) => stats.emit(buffer),
             Stats64(ref stats64) => stats64.emit(buffer),
-            LinkInfo(ref nlas) => nlas.as_slice().emit(buffer),
+            Info(ref nlas) => nlas.as_slice().emit(buffer),
             AfSpecInet(ref nlas) => nlas.as_slice().emit(buffer),
             // AfSpecBridge(ref nlas) => nlas.as_slice().emit(buffer),
             // default nlas
@@ -332,7 +331,7 @@ impl Nla for LinkNla {
     }
 
     fn kind(&self) -> u16 {
-        use self::LinkNla::*;
+        use self::Nla::*;
         match *self {
             // Vec<u8>
             Unspec(_) => IFLA_UNSPEC,
@@ -344,7 +343,7 @@ impl Nla for LinkNla {
             PortSelf(_) => IFLA_PORT_SELF,
             PhysPortId(_) => IFLA_PHYS_PORT_ID,
             PhysSwitchId(_) => IFLA_PHYS_SWITCH_ID,
-            LinkInfo(_) => IFLA_LINKINFO,
+            Info(_) => IFLA_LINKINFO,
             Wireless(_) => IFLA_WIRELESS,
             ProtoInfo(_) => IFLA_PROTINFO,
             Pad(_) => IFLA_PAD,
@@ -364,7 +363,7 @@ impl Nla for LinkNla {
             IfAlias(_) => IFLA_IFALIAS,
             PhysPortName(_) => IFLA_PHYS_PORT_NAME,
             // u8
-            LinkMode(_) => IFLA_LINKMODE,
+            Mode(_) => IFLA_LINKMODE,
             Carrier(_) => IFLA_CARRIER,
             ProtoDown(_) => IFLA_PROTO_DOWN,
             // u32
@@ -384,7 +383,7 @@ impl Nla for LinkNla {
             GsoMaxSegs(_) => IFLA_GSO_MAX_SEGS,
             GsoMaxSize(_) => IFLA_GSO_MAX_SIZE,
             // i32
-            LinkNetnsId(_) => IFLA_LINK_NETNSID,
+            NetnsId(_) => IFLA_LINK_NETNSID,
             // custom
             OperState(_) => IFLA_OPERSTATE,
             Map(_) => IFLA_MAP,
@@ -396,13 +395,14 @@ impl Nla for LinkNla {
     }
 }
 
-impl<'buffer, T: AsRef<[u8]> + ?Sized> ParseableParametrized<LinkNla, u16>
-    for NlaBuffer<&'buffer T>
-{
-    fn parse_with_param(&self, interface_family: u16) -> Result<LinkNla, DecodeError> {
-        use self::LinkNla::*;
-        let payload = self.value();
-        Ok(match self.kind() {
+impl<'a, T: AsRef<[u8]> + ?Sized> ParseableParametrized<NlaBuffer<&'a T>, u16> for Nla {
+    fn parse_with_param(
+        buf: &NlaBuffer<&'a T>,
+        interface_family: u16,
+    ) -> Result<Self, DecodeError> {
+        use Nla::*;
+        let payload = buf.value();
+        Ok(match buf.kind() {
             // Vec<u8>
             IFLA_UNSPEC => Unspec(payload.to_vec()),
             IFLA_COST => Cost(payload.to_vec()),
@@ -436,13 +436,12 @@ impl<'buffer, T: AsRef<[u8]> + ?Sized> ParseableParametrized<LinkNla, u16>
             }
 
             // u8
-            IFLA_LINKMODE => LinkMode(parse_u8(payload).context("invalid IFLA_LINKMODE value")?),
+            IFLA_LINKMODE => Mode(parse_u8(payload).context("invalid IFLA_LINKMODE value")?),
             IFLA_CARRIER => Carrier(parse_u8(payload).context("invalid IFLA_CARRIER value")?),
             IFLA_PROTO_DOWN => {
                 ProtoDown(parse_u8(payload).context("invalid IFLA_PROTO_DOWN value")?)
             }
 
-            // u32
             IFLA_MTU => Mtu(parse_u32(payload).context("invalid IFLA_MTU value")?),
             IFLA_LINK => Link(parse_u32(payload).context("invalid IFLA_LINK value")?),
             IFLA_MASTER => Master(parse_u32(payload).context("invalid IFLA_MASTER value")?),
@@ -472,60 +471,49 @@ impl<'buffer, T: AsRef<[u8]> + ?Sized> ParseableParametrized<LinkNla, u16>
             IFLA_GSO_MAX_SIZE => {
                 GsoMaxSize(parse_u32(payload).context("invalid IFLA_GSO_MAX_SIZE value")?)
             }
-
-            // i32
             IFLA_LINK_NETNSID => {
-                LinkNetnsId(parse_i32(payload).context("invalid IFLA_LINK_NETNSID value")?)
+                NetnsId(parse_i32(payload).context("invalid IFLA_LINK_NETNSID value")?)
             }
-
             IFLA_OPERSTATE => OperState(
                 parse_u8(payload)
                     .context("invalid IFLA_OPERSTATE value")?
                     .into(),
             ),
-            IFLA_MAP => Map(LinkMapBuffer::new_checked(payload)
-                .context("invalid IFLA_MAP value")?
-                .parse()
-                .context("invalid IFLA_MAP value")?),
-            IFLA_STATS => Stats(
-                LinkStatsBuffer::new_checked(payload)
-                    .context("invalid IFLA_STATS value")?
-                    .parse()
-                    .context("invalid IFLA_STATS value")?,
-            ),
-            IFLA_STATS64 => Stats64(
-                LinkStats64Buffer::new_checked(payload)
-                    .context("invalid IFLA_STATS64 value")?
-                    .parse()
-                    .context("invalid IFLA_STATS64 value")?,
-            ),
+            IFLA_MAP => {
+                let err = "invalid IFLA_MAP value";
+                let buf = map::MapBuffer::new_checked(payload).context(err)?;
+                Map(map::Map::parse(&buf).context(err)?)
+            }
+            IFLA_STATS => {
+                let err = "invalid IFLA_STATS value";
+                let buf = stats::StatsBuffer::new_checked(payload).context(err)?;
+                Stats(stats::Stats::parse(&buf).context(err)?)
+            }
+            IFLA_STATS64 => {
+                let err = "invalid IFLA_STATS64 value";
+                let buf = stats64::Stats64Buffer::new_checked(payload).context(err)?;
+                Stats64(stats64::Stats64::parse(&buf).context(err)?)
+            }
             IFLA_AF_SPEC => match interface_family as u16 {
                 AF_INET | AF_INET6 | AF_UNSPEC => {
                     let mut nlas = vec![];
+                    let err = "invalid IFLA_AF_SPEC value";
                     for nla in NlasIterator::new(payload) {
-                        let nla = nla.context("invalid IFLA_AF_SPEC value")?;
-                        nlas.push(
-                            <dyn Parseable<LinkAfSpecInetNla>>::parse(&nla)
-                                .context("invalid IFLA_AF_SPEC value")?,
-                        );
+                        let nla = nla.context(err)?;
+                        nlas.push(af_spec_inet::AfSpecInet::parse(&nla).context(err)?);
                     }
                     AfSpecInet(nlas)
                 }
                 AF_BRIDGE => AfSpecBridge(payload.to_vec()),
                 _ => AfSpecUnknown(payload.to_vec()),
             },
+            IFLA_LINKINFO => {
+                let err = "invalid IFLA_LINKINFO value";
+                let buf = NlaBuffer::new_checked(payload).context(err)?;
+                Info(VecInfo::parse(&buf).context(err)?.0)
+            }
 
-            IFLA_LINKINFO => LinkInfo(
-                NlaBuffer::new_checked(payload)
-                    .context("invalid IFLA_LINKINFO value")?
-                    .parse()
-                    .context("invalid IFLA_LINKINFO value")?,
-            ),
-            // default nlas
-            _ => Other(
-                <Self as Parseable<DefaultNla>>::parse(self)
-                    .context("invalid link NLA value (unknown type)")?,
-            ),
+            kind => Other(DefaultNla::parse(buf).context(format!("unknown NLA type {}", kind))?),
         })
     }
 }

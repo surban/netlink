@@ -43,7 +43,7 @@ fn main() {
             let bytes = &receive_buffer[offset..];
             // Note that we're parsing a NetlinkBuffer<&&[u8]>, NOT a NetlinkBuffer<&[u8]> here.
             // This is important because Parseable<NetlinkMessage> is only implemented for
-            // NetlinkBuffer<&'buffer T>, where T implements AsRef<[u8] + 'buffer. This is not
+            // NetlinkBuffer<&'a T>, where T implements AsRef<[u8] + 'a. This is not
             // particularly user friendly, but this is a low level library anyway.
             //
             // Note also that the same could be written more explicitely with:

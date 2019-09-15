@@ -1,42 +1,42 @@
-use super::{NsIdBuffer, NSID_HEADER_LEN};
+use super::{MessageBuffer, NSID_HEADER_LEN};
 use crate::{
     rtnl::traits::{Emitable, Parseable},
     DecodeError,
 };
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct NsIdHeader {
+pub struct Header {
     pub rtgen_family: u8,
 }
 
-impl Default for NsIdHeader {
+impl Default for Header {
     fn default() -> Self {
-        NsIdHeader::new()
+        Header::new()
     }
 }
 
-impl NsIdHeader {
-    /// Create a new `NsIdHeader`:
+impl Header {
+    /// Create a new `Header`:
     pub fn new() -> Self {
-        NsIdHeader { rtgen_family: 0 }
+        Header { rtgen_family: 0 }
     }
 }
 
-impl Emitable for NsIdHeader {
+impl Emitable for Header {
     fn buffer_len(&self) -> usize {
         NSID_HEADER_LEN
     }
 
     fn emit(&self, buffer: &mut [u8]) {
-        let mut packet = NsIdBuffer::new(buffer);
+        let mut packet = MessageBuffer::new(buffer);
         packet.set_rtgen_family(self.rtgen_family);
     }
 }
 
-impl<T: AsRef<[u8]>> Parseable<NsIdHeader> for NsIdBuffer<T> {
-    fn parse(&self) -> Result<NsIdHeader, DecodeError> {
-        Ok(NsIdHeader {
-            rtgen_family: self.rtgen_family(),
+impl<T: AsRef<[u8]>> Parseable<MessageBuffer<T>> for Header {
+    fn parse(buf: &MessageBuffer<T>) -> Result<Self, DecodeError> {
+        Ok(Header {
+            rtgen_family: buf.rtgen_family(),
         })
     }
 }

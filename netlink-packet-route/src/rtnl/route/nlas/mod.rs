@@ -1,19 +1,18 @@
-mod metrics;
-pub use self::metrics::*;
-
 mod cache_info;
 pub use self::cache_info::*;
+
+mod metrics;
+pub use self::metrics::*;
 
 mod mfc_stats;
 pub use self::mfc_stats::*;
 
 use byteorder::{ByteOrder, NativeEndian};
 use failure::ResultExt;
-use std::mem::size_of;
 
 use crate::{
     rtnl::{
-        nla::{DefaultNla, Nla, NlaBuffer},
+        nla::{self, DefaultNla, NlaBuffer},
         traits::{Emitable, Parseable},
         utils::{parse_u16, parse_u32},
     },
@@ -49,18 +48,18 @@ pub const RTA_UID: u16 = 25;
 pub const RTA_TTL_PROPAGATE: u16 = 26;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub enum RouteNla {
+pub enum Nla {
     Unspec(Vec<u8>),
     Destination(Vec<u8>),
     Source(Vec<u8>),
     Gateway(Vec<u8>),
     PrefSource(Vec<u8>),
-    Metrics(RouteMetricsNla),
+    Metrics(metrics::Metrics),
     MultiPath(Vec<u8>),
-    CacheInfo(RouteCacheInfo),
+    CacheInfo(cache_info::CacheInfo),
     Session(Vec<u8>),
     MpAlgo(Vec<u8>),
-    MfcStats(RouteMfcStats),
+    MfcStats(mfc_stats::MfcStats),
     Via(Vec<u8>),
     NewDestination(Vec<u8>),
     Pref(Vec<u8>),
@@ -80,10 +79,10 @@ pub enum RouteNla {
     Other(DefaultNla),
 }
 
-impl Nla for RouteNla {
+impl nla::Nla for Nla {
     #[rustfmt::skip]
     fn value_len(&self) -> usize {
-        use self::RouteNla::*;
+        use self::Nla::*;
         match *self {
             Unspec(ref bytes)
                 | Destination(ref bytes)
@@ -103,7 +102,7 @@ impl Nla for RouteNla {
                 | TtlPropagate(ref bytes)
                 => bytes.len(),
 
-            EncapType(_) => size_of::<u16>(),
+            EncapType(_) => 2,
             Iif(_)
                 | Oif(_)
                 | Priority(_)
@@ -111,10 +110,10 @@ impl Nla for RouteNla {
                 | Flow(_)
                 | Table(_)
                 | Mark(_)
-                => size_of::<u32>(),
+                => 4,
 
-            CacheInfo(_) => ROUTE_CACHE_INFO_LEN,
-            MfcStats(_) => ROUTE_MFC_STATS_LEN,
+            CacheInfo(_) => cache_info::CACHE_INFO_LEN,
+            MfcStats(_) => mfc_stats::MFC_STATS_LEN,
             Metrics(ref attr) => attr.buffer_len(),
             Other(ref attr) => attr.value_len(),
         }
@@ -122,7 +121,7 @@ impl Nla for RouteNla {
 
     #[rustfmt::skip]
     fn emit_value(&self, buffer: &mut [u8]) {
-        use self::RouteNla::*;
+        use self::Nla::*;
         match *self {
             Unspec(ref bytes)
                 | Destination(ref bytes)
@@ -158,7 +157,7 @@ impl Nla for RouteNla {
     }
 
     fn kind(&self) -> u16 {
-        use self::RouteNla::*;
+        use self::Nla::*;
         match *self {
             Unspec(_) => RTA_UNSPEC,
             Destination(_) => RTA_DST,
@@ -192,11 +191,12 @@ impl Nla for RouteNla {
     }
 }
 
-impl<'buffer, T: AsRef<[u8]> + ?Sized> Parseable<RouteNla> for NlaBuffer<&'buffer T> {
-    fn parse(&self) -> Result<RouteNla, DecodeError> {
-        use self::RouteNla::*;
-        let payload = self.value();
-        Ok(match self.kind() {
+impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<NlaBuffer<&'a T>> for Nla {
+    fn parse(buf: &NlaBuffer<&'a T>) -> Result<Self, DecodeError> {
+        use self::Nla::*;
+
+        let payload = buf.value();
+        Ok(match buf.kind() {
             RTA_UNSPEC => Unspec(payload.to_vec()),
             RTA_DST => Destination(payload.to_vec()),
             RTA_SRC => Source(payload.to_vec()),
@@ -225,28 +225,23 @@ impl<'buffer, T: AsRef<[u8]> + ?Sized> Parseable<RouteNla> for NlaBuffer<&'buffe
             RTA_FLOW => Flow(parse_u32(payload).context("invalid RTA_FLOW value")?),
             RTA_TABLE => Table(parse_u32(payload).context("invalid RTA_TABLE value")?),
             RTA_MARK => Mark(parse_u32(payload).context("invalid RTA_MARK value")?),
-            RTA_CACHEINFO => CacheInfo(
-                RouteCacheInfoBuffer::new_checked(payload)
-                    .context("invalid RTA_CACHEINFO value")?
-                    .parse()
-                    .context("invalid RTA_CACHEINFO value")?,
-            ),
-            RTA_MFC_STATS => MfcStats(
-                RouteMfcStatsBuffer::new_checked(payload)
-                    .context("invalid RTA_MFC_STATS value")?
-                    .parse()
-                    .context("invalid RTA_MFC_STATS value")?,
-            ),
-            RTA_METRICS => Metrics(
-                NlaBuffer::new_checked(payload)
-                    .context("invalid RTA_METRICS value")?
-                    .parse()
-                    .context("invalid RTA_METRICS value")?,
-            ),
-            _ => Other(
-                <Self as Parseable<DefaultNla>>::parse(self)
-                    .context("invalid NLA (unknown kind)")?,
-            ),
+            RTA_CACHEINFO => {
+                let buf = cache_info::CacheInfoBuffer::new_checked(payload)
+                    .context("invalid RTA_CACHEINFO value")?;
+                CacheInfo(
+                    cache_info::CacheInfo::parse(&buf).context("invalid RTA_CACHEINFO value")?,
+                )
+            }
+            RTA_MFC_STATS => {
+                let buf = mfc_stats::MfcStatsBuffer::new_checked(payload)
+                    .context("invalid RTA_MFC_STATS value")?;
+                MfcStats(mfc_stats::MfcStats::parse(&buf).context("invalid RTA_MFC_STATS value")?)
+            }
+            RTA_METRICS => {
+                let buf = NlaBuffer::new_checked(payload).context("invalid RTA_METRICS value")?;
+                Metrics(metrics::Metrics::parse(&buf).context("invalid RTA_METRICS value")?)
+            }
+            _ => Other(DefaultNla::parse(buf).context("invalid NLA (unknown kind)")?),
         })
     }
 }

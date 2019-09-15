@@ -17,8 +17,8 @@ use failure::ResultExt;
 
 buffer!(RtnlBuffer);
 
-impl<'buffer, T: AsRef<[u8]> + ?Sized> ParseableParametrized<RtnlMessage, u16>
-    for RtnlBuffer<&'buffer T>
+impl<'a, T: AsRef<[u8]> + ?Sized> ParseableParametrized<RtnlMessage, u16>
+    for RtnlBuffer<&'a T>
 {
     #[rustfmt::skip]
     fn parse_with_param(&self, message_type: u16) -> Result<RtnlMessage, DecodeError> {

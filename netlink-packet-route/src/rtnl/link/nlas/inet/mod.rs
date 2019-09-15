@@ -13,24 +13,24 @@ mod dev_conf;
 pub use self::dev_conf::*;
 
 #[derive(Clone, Eq, PartialEq, Debug)]
-pub enum LinkAfInetNla {
-    DevConf(LinkInetDevConf),
+pub enum Inet {
+    DevConf(InetDevConf),
     Unspec(Vec<u8>),
     Other(DefaultNla),
 }
 
-impl Nla for LinkAfInetNla {
+impl Nla for Inet {
     fn value_len(&self) -> usize {
-        use self::LinkAfInetNla::*;
+        use self::Inet::*;
         match *self {
             Unspec(ref bytes) => bytes.len(),
-            DevConf(_) => LINK_INET_DEV_CONF_LEN,
+            DevConf(_) => DEV_CONF_LEN,
             Other(ref nla) => nla.value_len(),
         }
     }
 
     fn emit_value(&self, buffer: &mut [u8]) {
-        use self::LinkAfInetNla::*;
+        use self::Inet::*;
         match *self {
             Unspec(ref bytes) => (&mut buffer[..bytes.len()]).copy_from_slice(bytes.as_slice()),
             DevConf(ref dev_conf) => dev_conf.emit(buffer),
@@ -39,7 +39,7 @@ impl Nla for LinkAfInetNla {
     }
 
     fn kind(&self) -> u16 {
-        use self::LinkAfInetNla::*;
+        use self::Inet::*;
         match *self {
             Unspec(_) => IFLA_INET_UNSPEC,
             DevConf(_) => IFLA_INET_CONF,
@@ -48,23 +48,19 @@ impl Nla for LinkAfInetNla {
     }
 }
 
-impl<'buffer, T: AsRef<[u8]> + ?Sized> Parseable<LinkAfInetNla> for NlaBuffer<&'buffer T> {
-    fn parse(&self) -> Result<LinkAfInetNla, DecodeError> {
-        use self::LinkAfInetNla::*;
+impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<NlaBuffer<&'a T>> for Inet {
+    fn parse(buf: &NlaBuffer<&'a T>) -> Result<Self, DecodeError> {
+        use self::Inet::*;
 
-        let payload = self.value();
-        Ok(match self.kind() {
+        let payload = buf.value();
+        Ok(match buf.kind() {
             IFLA_INET_UNSPEC => Unspec(payload.to_vec()),
-            IFLA_INET_CONF => DevConf(
-                LinkInetDevConfBuffer::new_checked(payload)
-                    .context("invalid IFLA_INET_CONF value")?
-                    .parse()
-                    .context("invalid IFLA_INET_CONF value")?,
-            ),
-            kind => Other(
-                <Self as Parseable<DefaultNla>>::parse(self)
-                    .context(format!("unknown NLA type {}", kind))?,
-            ),
+            IFLA_INET_CONF => {
+                let buf = InetDevConfBuffer::new_checked(payload)
+                    .context("invalid IFLA_INET_CONF value")?;
+                DevConf(InetDevConf::parse(&buf).context("invalid IFLA_INET_CONF value")?)
+            }
+            kind => Other(DefaultNla::parse(buf).context(format!("unknown NLA type {}", kind))?),
         })
     }
 }

@@ -6,7 +6,7 @@ pub use self::link_layer_type::*;
 
 use crate::{
     rtnl::{
-        link::{LinkBuffer, LINK_HEADER_LEN},
+        link::{MessageBuffer, LINK_HEADER_LEN},
         traits::{Emitable, Parseable},
     },
     DecodeError,
@@ -30,67 +30,67 @@ use crate::{
 /// +----------------+----------------+----------------+----------------+
 /// ```
 ///
-/// `LinkHeader` exposes all these fields except for the "reserved" one.
+/// `Header` exposes all these fields except for the "reserved" one.
 ///
 /// # Example
 ///
 /// ```rust
-/// use netlink_packet_route::rtnl::link::{LinkHeader, LinkFlags, LinkLayerType, IFF_UP};
+/// use netlink_packet_route::rtnl::link::{Header, Flags, LayerType, IFF_UP};
 /// fn main() {
-///     let mut hdr = LinkHeader::new();
+///     let mut hdr = Header::new();
 ///     assert_eq!(hdr.interface_family, 0u8);
-///     assert_eq!(hdr.link_layer_type, LinkLayerType::Ether);
-///     assert_eq!(hdr.flags, LinkFlags::new());
-///     assert_eq!(hdr.change_mask, LinkFlags::new());
+///     assert_eq!(hdr.link_layer_type, LayerType::Ether);
+///     assert_eq!(hdr.flags, Flags::new());
+///     assert_eq!(hdr.change_mask, Flags::new());
 ///
-///     let flags = LinkFlags::from(IFF_UP);
+///     let flags = Flags::from(IFF_UP);
 ///     hdr.flags = flags;
 ///     hdr.change_mask = flags;
-///     hdr.link_layer_type = LinkLayerType::IpGre;
+///     hdr.link_layer_type = LayerType::IpGre;
 /// }
 /// ```
 ///
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct LinkHeader {
+pub struct Header {
     pub interface_family: u8,
     pub index: u32,
-    pub link_layer_type: LinkLayerType,
-    pub flags: LinkFlags,
-    pub change_mask: LinkFlags,
+    pub link_layer_type: LayerType,
+    pub flags: Flags,
+    pub change_mask: Flags,
 }
 
-impl Default for LinkHeader {
+impl Default for Header {
     fn default() -> Self {
-        LinkHeader::new()
+        Header::new()
     }
 }
 
-impl LinkHeader {
-    /// Create a new `LinkHeader`:
+impl Header {
+    /// Create a new `Header`:
     ///
     /// - interface family defaults to `AF_UNSPEC` (0)
-    /// - the link layer type defaults to `ARPHRD_ETHER` ([`LinkLayerType::Ether`](enum.LinkLayerType.html))
+    /// - the link layer type defaults to `ARPHRD_ETHER` ([`LayerType::Ether`](enum.LayerType.html))
     /// - the linx index defaults to 0
-    /// - the flags default to 0 ([`LinkFlags::new()`](struct.LinkFlags.html#method.new))
-    /// - the change master default to 0 ([`LinkFlags::new()`](struct.LinkFlags.html#method.new))
+    /// - the flags default to 0 ([`Flags::new()`](struct.Flags.html#method.new))
+    /// - the change master default to 0 ([`Flags::new()`](struct.Flags.html#method.new))
     pub fn new() -> Self {
-        LinkHeader {
+        Header {
             interface_family: 0, // AF_UNSPEC
-            link_layer_type: LinkLayerType::Ether,
-            flags: LinkFlags::new(),
-            change_mask: LinkFlags::new(),
+            link_layer_type: LayerType::Ether,
+            flags: Flags::new(),
+            change_mask: Flags::new(),
             index: 0,
         }
     }
 }
 
-impl Emitable for LinkHeader {
+impl Emitable for Header {
     fn buffer_len(&self) -> usize {
         LINK_HEADER_LEN
     }
 
     fn emit(&self, buffer: &mut [u8]) {
-        let mut packet = LinkBuffer::new(buffer);
+        let mut packet = MessageBuffer::new(buffer);
         packet.set_interface_family(self.interface_family);
         packet.set_link_index(self.index);
         packet.set_change_mask(self.change_mask.into());
@@ -99,14 +99,14 @@ impl Emitable for LinkHeader {
     }
 }
 
-impl<T: AsRef<[u8]>> Parseable<LinkHeader> for LinkBuffer<T> {
-    fn parse(&self) -> Result<LinkHeader, DecodeError> {
-        Ok(LinkHeader {
-            interface_family: self.interface_family(),
-            link_layer_type: self.link_layer_type().into(),
-            index: self.link_index(),
-            change_mask: self.change_mask().into(),
-            flags: self.flags().into(),
+impl<T: AsRef<[u8]>> Parseable<MessageBuffer<T>> for Header {
+    fn parse(buf: &MessageBuffer<T>) -> Result<Self, DecodeError> {
+        Ok(Self {
+            interface_family: buf.interface_family(),
+            link_layer_type: buf.link_layer_type().into(),
+            index: buf.link_index(),
+            change_mask: buf.change_mask().into(),
+            flags: buf.flags().into(),
         })
     }
 }

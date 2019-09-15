@@ -2,39 +2,39 @@ use failure::ResultExt;
 
 use crate::{
     rtnl::{
-        link::{nlas::LinkNla, LinkBuffer, LinkHeader},
+        link::{nlas::Nla, Header, MessageBuffer},
         traits::{Emitable, Parseable, ParseableParametrized},
     },
     DecodeError,
 };
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct LinkMessage {
-    pub header: LinkHeader,
-    pub nlas: Vec<LinkNla>,
+pub struct Message {
+    pub header: Header,
+    pub nlas: Vec<Nla>,
 }
 
-impl Default for LinkMessage {
+impl Default for Message {
     fn default() -> Self {
-        LinkMessage::new()
+        Message::new()
     }
 }
 
-impl LinkMessage {
+impl Message {
     pub fn new() -> Self {
-        LinkMessage::from_parts(LinkHeader::new(), vec![])
+        Message::from_parts(Header::new(), vec![])
     }
 
-    pub fn into_parts(self) -> (LinkHeader, Vec<LinkNla>) {
+    pub fn into_parts(self) -> (Header, Vec<Nla>) {
         (self.header, self.nlas)
     }
 
-    pub fn from_parts(header: LinkHeader, nlas: Vec<LinkNla>) -> Self {
-        LinkMessage { header, nlas }
+    pub fn from_parts(header: Header, nlas: Vec<Nla>) -> Self {
+        Message { header, nlas }
     }
 }
 
-impl Emitable for LinkMessage {
+impl Emitable for Message {
     fn buffer_len(&self) -> usize {
         self.header.buffer_len() + self.nlas.as_slice().buffer_len()
     }
@@ -47,38 +47,29 @@ impl Emitable for LinkMessage {
     }
 }
 
-impl<'buffer, T: AsRef<[u8]> + 'buffer> Parseable<LinkMessage> for LinkBuffer<&'buffer T> {
-    fn parse(&self) -> Result<LinkMessage, DecodeError> {
-        let header: LinkHeader = self
-            .parse()
-            .context("failed to parse link message header")?;
+impl<'a, T: AsRef<[u8]> + 'a> Parseable<MessageBuffer<&'a T>> for Message {
+    fn parse(buf: &MessageBuffer<&'a T>) -> Result<Self, DecodeError> {
+        let header = Header::parse(&buf).context("failed to parse link message header")?;
         let interface_family = header.interface_family;
-        Ok(LinkMessage {
-            header,
-            nlas: self
-                .parse_with_param(interface_family)
-                .context("failed to parse link message NLAs")?,
-        })
+        let nlas = Vec::<Nla>::parse_with_param(buf, interface_family)
+            .context("failed to parse link message NLAs")?;
+        Ok(Message { header, nlas })
     }
 }
 
-impl<'buffer, T: AsRef<[u8]> + 'buffer> ParseableParametrized<Vec<LinkNla>, u16>
-    for LinkBuffer<&'buffer T>
-{
-    fn parse_with_param(&self, family: u16) -> Result<Vec<LinkNla>, DecodeError> {
+impl<'a, T: AsRef<[u8]> + 'a> ParseableParametrized<MessageBuffer<&'a T>, u16> for Vec<Nla> {
+    fn parse_with_param(buf: &MessageBuffer<&'a T>, family: u16) -> Result<Self, DecodeError> {
         let mut nlas = vec![];
-        for nla_buf in self.nlas() {
-            nlas.push(nla_buf?.parse_with_param(family)?);
+        for nla_buf in buf.nlas() {
+            nlas.push(Nla::parse_with_param(&nla_buf?, family)?);
         }
         Ok(nlas)
     }
 }
 
-impl<'buffer, T: AsRef<[u8]> + 'buffer> ParseableParametrized<Vec<LinkNla>, u8>
-    for LinkBuffer<&'buffer T>
-{
-    fn parse_with_param(&self, family: u8) -> Result<Vec<LinkNla>, DecodeError> {
-        self.parse_with_param(u16::from(family))
+impl<'a, T: AsRef<[u8]> + 'a> ParseableParametrized<MessageBuffer<&'a T>, u8> for Vec<Nla> {
+    fn parse_with_param(buf: &MessageBuffer<&'a T>, family: u8) -> Result<Self, DecodeError> {
+        Vec::<Nla>::parse_with_param(buf, u16::from(family))
     }
 }
 
@@ -87,9 +78,9 @@ mod test {
     use crate::rtnl::{
         link::{
             address_families::AF_INET,
-            nlas::{LinkNla, LinkState},
-            LinkBuffer, LinkFlags, LinkHeader, LinkLayerType, LinkMessage, IFF_LOOPBACK,
-            IFF_LOWER_UP, IFF_RUNNING, IFF_UP,
+            nlas::{Nla, State},
+            Flags, Header, LayerType, Message, MessageBuffer, IFF_LOOPBACK, IFF_LOWER_UP,
+            IFF_RUNNING, IFF_UP,
         },
         traits::{Emitable, ParseableParametrized},
     };
@@ -123,43 +114,43 @@ mod test {
 
     #[test]
     fn packet_header_read() {
-        let packet = LinkBuffer::new(&HEADER[0..16]);
+        let packet = MessageBuffer::new(&HEADER[0..16]);
         assert_eq!(packet.interface_family(), 0);
         assert_eq!(packet.reserved_1(), 0);
         assert_eq!(
-            LinkLayerType::from(packet.link_layer_type()),
-            LinkLayerType::Loopback
+            LayerType::from(packet.link_layer_type()),
+            LayerType::Loopback
         );
         assert_eq!(packet.link_index(), 1);
         assert_eq!(packet.flags(), IFF_UP | IFF_LOOPBACK | IFF_RUNNING);
-        assert!(LinkFlags::from(packet.flags()).is_running());
-        assert!(LinkFlags::from(packet.flags()).is_loopback());
-        assert!(LinkFlags::from(packet.flags()).is_up());
-        assert_eq!(LinkFlags::from(packet.change_mask()), LinkFlags::new());
+        assert!(Flags::from(packet.flags()).is_running());
+        assert!(Flags::from(packet.flags()).is_loopback());
+        assert!(Flags::from(packet.flags()).is_up());
+        assert_eq!(Flags::from(packet.change_mask()), Flags::new());
     }
 
     #[test]
     fn packet_header_build() {
         let mut buf = vec![0xff; 16];
         {
-            let mut packet = LinkBuffer::new(&mut buf);
+            let mut packet = MessageBuffer::new(&mut buf);
             packet.set_interface_family(0);
             packet.set_reserved_1(0);
-            packet.set_link_layer_type(LinkLayerType::Loopback.into());
+            packet.set_link_layer_type(LayerType::Loopback.into());
             packet.set_link_index(1);
-            let mut flags = LinkFlags::new();
+            let mut flags = Flags::new();
             flags.set_up();
             flags.set_loopback();
             flags.set_running();
             packet.set_flags(flags.into());
-            packet.set_change_mask(LinkFlags::new().into());
+            packet.set_change_mask(Flags::new().into());
         }
         assert_eq!(&buf[..], &HEADER[0..16]);
     }
 
     #[test]
     fn packet_nlas_read() {
-        let packet = LinkBuffer::new(&HEADER[..]);
+        let packet = MessageBuffer::new(&HEADER[..]);
         assert_eq!(packet.nlas().count(), 10);
         let mut nlas = packet.nlas();
 
@@ -169,8 +160,8 @@ mod test {
         assert_eq!(nla.length(), 7);
         assert_eq!(nla.kind(), 3);
         assert_eq!(nla.value(), &[0x6c, 0x6f, 0x00]);
-        let parsed: LinkNla = nla.parse_with_param(AF_INET).unwrap();
-        assert_eq!(parsed, LinkNla::IfName(String::from("lo")));
+        let parsed: Nla = nla.parse_with_param(AF_INET).unwrap();
+        assert_eq!(parsed, Nla::IfName(String::from("lo")));
 
         // TxQueue length L=8,T=13,V=1000
         let nla = nlas.next().unwrap().unwrap();
@@ -178,8 +169,8 @@ mod test {
         assert_eq!(nla.length(), 8);
         assert_eq!(nla.kind(), 13);
         assert_eq!(nla.value(), &[0xe8, 0x03, 0x00, 0x00]);
-        let parsed: LinkNla = nla.parse_with_param(AF_INET).unwrap();
-        assert_eq!(parsed, LinkNla::TxQueueLen(1000));
+        let parsed: Nla = nla.parse_with_param(AF_INET).unwrap();
+        assert_eq!(parsed, Nla::TxQueueLen(1000));
 
         // OperState L=5,T=16,V=0 (unknown)
         let nla = nlas.next().unwrap().unwrap();
@@ -187,8 +178,8 @@ mod test {
         assert_eq!(nla.length(), 5);
         assert_eq!(nla.kind(), 16);
         assert_eq!(nla.value(), &[0x00]);
-        let parsed: LinkNla = nla.parse_with_param(AF_INET).unwrap();
-        assert_eq!(parsed, LinkNla::OperState(LinkState::Unknown));
+        let parsed: Nla = nla.parse_with_param(AF_INET).unwrap();
+        assert_eq!(parsed, Nla::OperState(State::Unknown));
 
         // Link mode L=5,T=17,V=0
         let nla = nlas.next().unwrap().unwrap();
@@ -196,8 +187,8 @@ mod test {
         assert_eq!(nla.length(), 5);
         assert_eq!(nla.kind(), 17);
         assert_eq!(nla.value(), &[0x00]);
-        let parsed: LinkNla = nla.parse_with_param(AF_INET).unwrap();
-        assert_eq!(parsed, LinkNla::LinkMode(0));
+        let parsed: Nla = nla.parse_with_param(AF_INET).unwrap();
+        assert_eq!(parsed, Nla::Mode(0));
 
         // MTU L=8,T=4,V=65536
         let nla = nlas.next().unwrap().unwrap();
@@ -205,8 +196,8 @@ mod test {
         assert_eq!(nla.length(), 8);
         assert_eq!(nla.kind(), 4);
         assert_eq!(nla.value(), &[0x00, 0x00, 0x01, 0x00]);
-        let parsed: LinkNla = nla.parse_with_param(AF_INET).unwrap();
-        assert_eq!(parsed, LinkNla::Mtu(65_536));
+        let parsed: Nla = nla.parse_with_param(AF_INET).unwrap();
+        assert_eq!(parsed, Nla::Mtu(65_536));
 
         // 0x00, 0x00, 0x00, 0x00,
         // Group L=8,T=27,V=9
@@ -215,8 +206,8 @@ mod test {
         assert_eq!(nla.length(), 8);
         assert_eq!(nla.kind(), 27);
         assert_eq!(nla.value(), &[0x00, 0x00, 0x00, 0x00]);
-        let parsed: LinkNla = nla.parse_with_param(AF_INET).unwrap();
-        assert_eq!(parsed, LinkNla::Group(0));
+        let parsed: Nla = nla.parse_with_param(AF_INET).unwrap();
+        assert_eq!(parsed, Nla::Group(0));
 
         // Promiscuity L=8,T=30,V=0
         let nla = nlas.next().unwrap().unwrap();
@@ -224,8 +215,8 @@ mod test {
         assert_eq!(nla.length(), 8);
         assert_eq!(nla.kind(), 30);
         assert_eq!(nla.value(), &[0x00, 0x00, 0x00, 0x00]);
-        let parsed: LinkNla = nla.parse_with_param(AF_INET).unwrap();
-        assert_eq!(parsed, LinkNla::Promiscuity(0));
+        let parsed: Nla = nla.parse_with_param(AF_INET).unwrap();
+        assert_eq!(parsed, Nla::Promiscuity(0));
 
         // Number of Tx Queues L=8,T=31,V=1
         // 0x01, 0x00, 0x00, 0x00
@@ -234,31 +225,31 @@ mod test {
         assert_eq!(nla.length(), 8);
         assert_eq!(nla.kind(), 31);
         assert_eq!(nla.value(), &[0x01, 0x00, 0x00, 0x00]);
-        let parsed: LinkNla = nla.parse_with_param(AF_INET).unwrap();
-        assert_eq!(parsed, LinkNla::NumTxQueues(1));
+        let parsed: Nla = nla.parse_with_param(AF_INET).unwrap();
+        assert_eq!(parsed, Nla::NumTxQueues(1));
     }
 
     #[test]
     fn emit() {
-        let mut header = LinkHeader::new();
-        header.link_layer_type = LinkLayerType::Loopback;
+        let mut header = Header::new();
+        header.link_layer_type = LayerType::Loopback;
         header.index = 1;
-        header.flags = LinkFlags::from(IFF_UP | IFF_LOOPBACK | IFF_RUNNING | IFF_LOWER_UP);
+        header.flags = Flags::from(IFF_UP | IFF_LOOPBACK | IFF_RUNNING | IFF_LOWER_UP);
 
         let nlas = vec![
-            LinkNla::IfName("lo".into()),
-            LinkNla::TxQueueLen(1000),
-            LinkNla::OperState(LinkState::Unknown),
-            LinkNla::LinkMode(0),
-            LinkNla::Mtu(0x1_0000),
-            LinkNla::Group(0),
-            LinkNla::Promiscuity(0),
-            LinkNla::NumTxQueues(1),
-            LinkNla::GsoMaxSegs(0xffff),
-            LinkNla::GsoMaxSize(0x1_0000),
+            Nla::IfName("lo".into()),
+            Nla::TxQueueLen(1000),
+            Nla::OperState(State::Unknown),
+            Nla::Mode(0),
+            Nla::Mtu(0x1_0000),
+            Nla::Group(0),
+            Nla::Promiscuity(0),
+            Nla::NumTxQueues(1),
+            Nla::GsoMaxSegs(0xffff),
+            Nla::GsoMaxSize(0x1_0000),
         ];
 
-        let packet = LinkMessage::from_parts(header, nlas);
+        let packet = Message::from_parts(header, nlas);
 
         let mut buf = vec![0; 96];
 

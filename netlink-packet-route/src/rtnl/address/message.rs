@@ -70,7 +70,7 @@ impl<T: AsRef<[u8]>> Parseable<AddressHeader> for AddressBuffer<T> {
     }
 }
 
-impl<'buffer, T: AsRef<[u8]> + 'buffer> Parseable<AddressMessage> for AddressBuffer<&'buffer T> {
+impl<'a, T: AsRef<[u8]> + 'a> Parseable<AddressMessage> for AddressBuffer<&'a T> {
     fn parse(&self) -> Result<AddressMessage, DecodeError> {
         Ok(AddressMessage {
             header: self
@@ -83,7 +83,7 @@ impl<'buffer, T: AsRef<[u8]> + 'buffer> Parseable<AddressMessage> for AddressBuf
     }
 }
 
-impl<'buffer, T: AsRef<[u8]> + 'buffer> Parseable<Vec<AddressNla>> for AddressBuffer<&'buffer T> {
+impl<'a, T: AsRef<[u8]> + 'a> Parseable<Vec<AddressNla>> for AddressBuffer<&'a T> {
     fn parse(&self) -> Result<Vec<AddressNla>, DecodeError> {
         let mut nlas = vec![];
         for nla_buf in self.nlas() {

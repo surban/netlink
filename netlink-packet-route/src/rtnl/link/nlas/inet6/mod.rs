@@ -24,24 +24,24 @@ mod stats;
 pub use self::stats::*;
 
 #[derive(Clone, Eq, PartialEq, Debug)]
-pub enum LinkAfInet6Nla {
+pub enum Inet6 {
     Flags(u32),
-    CacheInfo(LinkInet6CacheInfo),
-    // LinkInet6DevConf is big (198 bytes), so we're wasting a space for each variant without a box.
-    DevConf(Box<LinkInet6DevConf>),
+    CacheInfo(Inet6CacheInfo),
+    // Inet6DevConf is big (198 bytes), so we're wasting a space for each variant without a box.
+    DevConf(Box<Inet6DevConf>),
     Unspec(Vec<u8>),
-    // LinkInet6Stats is huge (288 bytes), so we're wasting a *lot* of space for each variant without a
+    // Inet6Stats is huge (288 bytes), so we're wasting a *lot* of space for each variant without a
     // box.
-    Stats(Box<LinkInet6Stats>),
-    IcmpStats(LinkIcmp6Stats),
+    Stats(Box<Inet6Stats>),
+    IcmpStats(Icmp6Stats),
     Token([u8; 16]),
     AddrGenMode(u8),
     Other(DefaultNla),
 }
 
-impl Nla for LinkAfInet6Nla {
+impl Nla for Inet6 {
     fn value_len(&self) -> usize {
-        use self::LinkAfInet6Nla::*;
+        use self::Inet6::*;
         match *self {
             Unspec(ref bytes) => bytes.len(),
             CacheInfo(ref cache_info) => cache_info.buffer_len(),
@@ -56,7 +56,7 @@ impl Nla for LinkAfInet6Nla {
     }
 
     fn emit_value(&self, buffer: &mut [u8]) {
-        use self::LinkAfInet6Nla::*;
+        use self::Inet6::*;
         match *self {
             Unspec(ref bytes) => buffer.copy_from_slice(bytes.as_slice()),
             Flags(ref value) => NativeEndian::write_u32(buffer, *value),
@@ -71,7 +71,7 @@ impl Nla for LinkAfInet6Nla {
     }
 
     fn kind(&self) -> u16 {
-        use self::LinkAfInet6Nla::*;
+        use self::Inet6::*;
         match *self {
             Unspec(_) => IFLA_INET6_UNSPEC,
             Flags(_) => IFLA_INET6_FLAGS,
@@ -86,49 +86,46 @@ impl Nla for LinkAfInet6Nla {
     }
 }
 
-impl<'buffer, T: AsRef<[u8]> + ?Sized> Parseable<LinkAfInet6Nla> for NlaBuffer<&'buffer T> {
-    fn parse(&self) -> Result<LinkAfInet6Nla, DecodeError> {
-        use self::LinkAfInet6Nla::*;
-        let payload = self.value();
-        Ok(match self.kind() {
+impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<NlaBuffer<&'a T>> for Inet6 {
+    fn parse(buf: &NlaBuffer<&'a T>) -> Result<Self, DecodeError> {
+        use self::Inet6::*;
+        let payload = buf.value();
+        Ok(match buf.kind() {
             IFLA_INET6_UNSPEC => Unspec(payload.to_vec()),
             IFLA_INET6_FLAGS => {
                 Flags(parse_u32(payload).context("invalid IFLA_INET6_FLAGS value")?)
             }
-            IFLA_INET6_CACHEINFO => CacheInfo(
-                LinkInet6CacheInfoBuffer::new_checked(payload)
-                    .context("invalid IFLA_INET6_CACHEINFO value")?
-                    .parse()
-                    .context("invalid IFLA_INET6_CACHEINFO value")?,
-            ),
-            IFLA_INET6_CONF => DevConf(Box::new(
-                LinkInet6DevConfBuffer::new_checked(payload)
-                    .context("invalid IFLA_INET6_CONF value")?
-                    .parse()
-                    .context("invalid IFLA_INET6_CONF value")?,
-            )),
-            IFLA_INET6_STATS => Stats(Box::new(
-                LinkInet6StatsBuffer::new_checked(payload)
-                    .context("invalid IFLA_INET6_STATS value")?
-                    .parse()
-                    .context("invalid IFLA_INET6_STATS value")?,
-            )),
-            IFLA_INET6_ICMP6STATS => IcmpStats(
-                LinkIcmp6StatsBuffer::new_checked(payload)
-                    .context("invalid IFLA_INET6_ICMP6STATS value")?
-                    .parse()
-                    .context("invalid IFLA_INET6_ICMP6STATS value")?,
-            ),
+            IFLA_INET6_CACHEINFO => {
+                let buf = Inet6CacheInfoBuffer::new_checked(payload)
+                    .context("invalid IFLA_INET6_CACHEINFO value")?;
+                CacheInfo(
+                    Inet6CacheInfo::parse(&buf).context("invalid IFLA_INET6_CACHEINFO value")?,
+                )
+            }
+            IFLA_INET6_CONF => {
+                let buf = Inet6DevConfBuffer::new_checked(payload)
+                    .context("invalid IFLA_INET6_CONF value")?;
+                let parsed = Inet6DevConf::parse(&buf).context("invalid IFLA_INET6_CONF value")?;
+                DevConf(Box::new(parsed))
+            }
+            IFLA_INET6_STATS => {
+                let buf = Inet6StatsBuffer::new_checked(payload)
+                    .context("invalid IFLA_INET6_STATS value")?;
+                let parsed = Inet6Stats::parse(&buf).context("invalid IFLA_INET6_STATS value")?;
+                Stats(Box::new(parsed))
+            }
+            IFLA_INET6_ICMP6STATS => {
+                let buf = Icmp6StatsBuffer::new_checked(payload)
+                    .context("invalid IFLA_INET6_ICMP6STATS value")?;
+                IcmpStats(Icmp6Stats::parse(&buf).context("invalid IFLA_INET6_ICMP6STATS value")?)
+            }
             IFLA_INET6_TOKEN => {
                 Token(parse_ipv6(payload).context("invalid IFLA_INET6_TOKEN value")?)
             }
             IFLA_INET6_ADDR_GEN_MODE => {
                 AddrGenMode(parse_u8(payload).context("invalid IFLA_INET6_ADDR_GEN_MODE value")?)
             }
-            kind => Other(
-                <Self as Parseable<DefaultNla>>::parse(self)
-                    .context(format!("unknown NLA type {}", kind))?,
-            ),
+            kind => Other(DefaultNla::parse(buf).context(format!("unknown NLA type {}", kind))?),
         })
     }
 }

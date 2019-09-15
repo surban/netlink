@@ -111,7 +111,7 @@ impl Nla for AddressNla {
     }
 }
 
-impl<'buffer, T: AsRef<[u8]> + ?Sized> Parseable<AddressNla> for NlaBuffer<&'buffer T> {
+impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<AddressNla> for NlaBuffer<&'a T> {
     fn parse(&self) -> Result<AddressNla, DecodeError> {
         use self::AddressNla::*;
         let payload = self.value();
