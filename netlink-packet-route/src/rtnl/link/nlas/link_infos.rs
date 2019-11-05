@@ -1229,7 +1229,7 @@ mod tests {
                     flags: 0,
                     change_mask: 0,
                 },
-                nlas: vec![
+                nlas: smallvec![
                     Nla::IfName("vethc0e60d6".to_string()),
                     Nla::TxQueueLen(0),
                 ],

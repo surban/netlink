@@ -1,4 +1,5 @@
 use failure::ResultExt;
+use smallvec::SmallVec;
 
 use crate::{
     nlas::nsid::Nla,
@@ -9,21 +10,21 @@ use crate::{
 #[derive(Debug, PartialEq, Eq, Clone, Default)]
 pub struct NsidMessage {
     pub header: NsidHeader,
-    pub nlas: Vec<Nla>,
+    pub nlas: SmallVec<[Nla; 4]>,
 }
 
 impl<'a, T: AsRef<[u8]> + 'a> Parseable<NsidMessageBuffer<&'a T>> for NsidMessage {
     fn parse(buf: &NsidMessageBuffer<&'a T>) -> Result<Self, DecodeError> {
         Ok(Self {
             header: NsidHeader::parse(buf).context("failed to parse nsid message header")?,
-            nlas: Vec::<Nla>::parse(buf).context("failed to parse nsid message NLAs")?,
+            nlas: SmallVec::<[Nla; 4]>::parse(buf).context("failed to parse nsid message NLAs")?,
         })
     }
 }
 
-impl<'a, T: AsRef<[u8]> + 'a> Parseable<NsidMessageBuffer<&'a T>> for Vec<Nla> {
+impl<'a, T: AsRef<[u8]> + 'a> Parseable<NsidMessageBuffer<&'a T>> for SmallVec<[Nla; 4]> {
     fn parse(buf: &NsidMessageBuffer<&'a T>) -> Result<Self, DecodeError> {
-        let mut nlas = vec![];
+        let mut nlas: SmallVec<[Nla; 4]> = smallvec![];
         for nla_buf in buf.nlas() {
             nlas.push(Nla::parse(&nla_buf?)?);
         }
@@ -71,7 +72,7 @@ mod test {
         ];
         let expected = RtnlMessage::GetNsId(NsidMessage {
             header: NsidHeader { rtgen_family: 0 },
-            nlas: vec![Nla::Fd(4)],
+            nlas: smallvec![Nla::Fd(4)],
         });
         let actual = RtnlMessage::parse_with_param(&RtnlMessageBuffer::new(&NetlinkBuffer::new(&data).payload()), RTM_GETNSID).unwrap();
         assert_eq!(expected, actual);
@@ -97,7 +98,7 @@ mod test {
         ];
         let expected = RtnlMessage::NewNsId(NsidMessage {
             header: NsidHeader { rtgen_family: 0 },
-            nlas: vec![Nla::Id(NETNSA_NSID_NOT_ASSIGNED)],
+            nlas: smallvec![Nla::Id(NETNSA_NSID_NOT_ASSIGNED)],
         });
         let nl_buffer = NetlinkBuffer::new(&data).payload();
         let rtnl_buffer = RtnlMessageBuffer::new(&nl_buffer);

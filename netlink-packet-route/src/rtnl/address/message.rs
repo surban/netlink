@@ -1,4 +1,5 @@
 use failure::ResultExt;
+use smallvec::SmallVec;
 
 use crate::{
     nlas::address::Nla,
@@ -9,7 +10,7 @@ use crate::{
 #[derive(Debug, PartialEq, Eq, Clone, Default)]
 pub struct AddressMessage {
     pub header: AddressHeader,
-    pub nlas: Vec<Nla>,
+    pub nlas: SmallVec<[Nla; 4]>,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Default)]
@@ -65,14 +66,15 @@ impl<'a, T: AsRef<[u8]> + 'a> Parseable<AddressMessageBuffer<&'a T>> for Address
     fn parse(buf: &AddressMessageBuffer<&'a T>) -> Result<Self, DecodeError> {
         Ok(AddressMessage {
             header: AddressHeader::parse(buf).context("failed to parse address message header")?,
-            nlas: Vec::<Nla>::parse(buf).context("failed to parse address message NLAs")?,
+            nlas: SmallVec::<[Nla; 4]>::parse(buf)
+                .context("failed to parse address message NLAs")?,
         })
     }
 }
 
-impl<'a, T: AsRef<[u8]> + 'a> Parseable<AddressMessageBuffer<&'a T>> for Vec<Nla> {
+impl<'a, T: AsRef<[u8]> + 'a> Parseable<AddressMessageBuffer<&'a T>> for SmallVec<[Nla; 4]> {
     fn parse(buf: &AddressMessageBuffer<&'a T>) -> Result<Self, DecodeError> {
-        let mut nlas = vec![];
+        let mut nlas = smallvec![];
         for nla_buf in buf.nlas() {
             nlas.push(Nla::parse(&nla_buf?)?);
         }

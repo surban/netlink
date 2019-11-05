@@ -44,7 +44,7 @@ fn test_non_null_terminated_string() {
         ];
     let expected = RtnlMessage::NewLink(LinkMessage {
         header: LinkHeader::default(),
-        nlas: vec![
+        nlas: smallvec![
             Nla::IfName(String::from("qemu-br1")),
             Nla::Info(vec![Info::Kind(InfoKind::Bridge)]),
         ],
@@ -87,7 +87,7 @@ fn test_attach_to_bridge() {
             flags: 0,
             change_mask: 0,
         },
-        nlas: vec![Nla::Master(5)],
+        nlas: smallvec![Nla::Master(5)],
     });
     assert_eq!(expected, actual);
 }

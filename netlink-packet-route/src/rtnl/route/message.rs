@@ -4,11 +4,12 @@ use crate::{
     DecodeError, RouteHeader, RouteMessageBuffer,
 };
 use failure::ResultExt;
+use smallvec::SmallVec;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct RouteMessage {
     pub header: RouteHeader,
-    pub nlas: Vec<Nla>,
+    pub nlas: SmallVec<[Nla; 4]>,
 }
 
 impl Emitable for RouteMessage {
@@ -26,14 +27,14 @@ impl<'a, T: AsRef<[u8]> + 'a> Parseable<RouteMessageBuffer<&'a T>> for RouteMess
     fn parse(buf: &RouteMessageBuffer<&'a T>) -> Result<Self, DecodeError> {
         Ok(RouteMessage {
             header: RouteHeader::parse(buf).context("failed to parse route message header")?,
-            nlas: Vec::<Nla>::parse(buf).context("failed to parse route message NLAs")?,
+            nlas: SmallVec::<[Nla; 4]>::parse(buf).context("failed to parse route message NLAs")?,
         })
     }
 }
 
-impl<'a, T: AsRef<[u8]> + 'a> Parseable<RouteMessageBuffer<&'a T>> for Vec<Nla> {
+impl<'a, T: AsRef<[u8]> + 'a> Parseable<RouteMessageBuffer<&'a T>> for SmallVec<[Nla; 4]> {
     fn parse(buf: &RouteMessageBuffer<&'a T>) -> Result<Self, DecodeError> {
-        let mut nlas = vec![];
+        let mut nlas = smallvec![];
         for nla_buf in buf.nlas() {
             nlas.push(Nla::parse(&nla_buf?)?);
         }

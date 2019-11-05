@@ -53,7 +53,7 @@ impl<'a, T: AsRef<[u8]> + ?Sized> ParseableParametrized<RtnlMessageBuffer<&'a T>
                         if buf.inner().len() == 4 && message_type == RTM_GETADDR {
                             let mut msg = AddressMessage {
                                 header: AddressHeader::default(),
-                                nlas: vec![],
+                                nlas: smallvec![],
                             };
                             msg.header.family = buf.inner()[0];
                             msg
@@ -108,7 +108,7 @@ impl<'a, T: AsRef<[u8]> + ?Sized> ParseableParametrized<RtnlMessageBuffer<&'a T>
                         if (buf.inner().len() == 4 || buf.inner().len() == 1) && message_type == RTM_GETROUTE {
                             let mut msg = RouteMessage {
                                 header: RouteHeader::default(),
-                                nlas: vec![],
+                                nlas: smallvec![],
                             };
                             msg.header.address_family = buf.inner()[0];
                             msg

@@ -1,4 +1,5 @@
 use failure::ResultExt;
+use smallvec::SmallVec;
 
 use crate::{
     nlas::link::Nla,
@@ -9,7 +10,7 @@ use crate::{
 #[derive(Debug, PartialEq, Eq, Clone, Default)]
 pub struct LinkMessage {
     pub header: LinkHeader,
-    pub nlas: Vec<Nla>,
+    pub nlas: SmallVec<[Nla; 4]>,
 }
 
 impl Emitable for LinkMessage {
@@ -29,15 +30,17 @@ impl<'a, T: AsRef<[u8]> + 'a> Parseable<LinkMessageBuffer<&'a T>> for LinkMessag
     fn parse(buf: &LinkMessageBuffer<&'a T>) -> Result<Self, DecodeError> {
         let header = LinkHeader::parse(&buf).context("failed to parse link message header")?;
         let interface_family = header.interface_family;
-        let nlas = Vec::<Nla>::parse_with_param(buf, interface_family)
+        let nlas = SmallVec::<[Nla; 4]>::parse_with_param(buf, interface_family)
             .context("failed to parse link message NLAs")?;
         Ok(LinkMessage { header, nlas })
     }
 }
 
-impl<'a, T: AsRef<[u8]> + 'a> ParseableParametrized<LinkMessageBuffer<&'a T>, u16> for Vec<Nla> {
+impl<'a, T: AsRef<[u8]> + 'a> ParseableParametrized<LinkMessageBuffer<&'a T>, u16>
+    for SmallVec<[Nla; 4]>
+{
     fn parse_with_param(buf: &LinkMessageBuffer<&'a T>, family: u16) -> Result<Self, DecodeError> {
-        let mut nlas = vec![];
+        let mut nlas = smallvec![];
         for nla_buf in buf.nlas() {
             nlas.push(Nla::parse_with_param(&nla_buf?, family)?);
         }
@@ -45,9 +48,11 @@ impl<'a, T: AsRef<[u8]> + 'a> ParseableParametrized<LinkMessageBuffer<&'a T>, u1
     }
 }
 
-impl<'a, T: AsRef<[u8]> + 'a> ParseableParametrized<LinkMessageBuffer<&'a T>, u8> for Vec<Nla> {
+impl<'a, T: AsRef<[u8]> + 'a> ParseableParametrized<LinkMessageBuffer<&'a T>, u8>
+    for SmallVec<[Nla; 4]>
+{
     fn parse_with_param(buf: &LinkMessageBuffer<&'a T>, family: u8) -> Result<Self, DecodeError> {
-        Vec::<Nla>::parse_with_param(buf, u16::from(family))
+        SmallVec::<[Nla; 4]>::parse_with_param(buf, u16::from(family))
     }
 }
 
@@ -201,7 +206,7 @@ mod test {
         header.index = 1;
         header.flags = IFF_UP | IFF_LOOPBACK | IFF_RUNNING | IFF_LOWER_UP;
 
-        let nlas = vec![
+        let nlas = smallvec![
             Nla::IfName("lo".into()),
             Nla::TxQueueLen(1000),
             Nla::OperState(State::Unknown),

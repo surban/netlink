@@ -1,4 +1,5 @@
 use criterion::{criterion_group, criterion_main, Criterion};
+use smallvec::SmallVec;
 
 use netlink_packet_route::{
     nlas::link::Nla,
@@ -41,7 +42,11 @@ fn b1(c: &mut Criterion) {
 
     c.bench_function("parse LinkMessage nlas", |b| {
         b.iter(|| {
-            Vec::<Nla>::parse_with_param(&LinkMessageBuffer::new(&&LINKMSG1[..]), 0 as u8).unwrap();
+            SmallVec::<[Nla; 4]>::parse_with_param(
+                &LinkMessageBuffer::new(&&LINKMSG1[..]),
+                0 as u8,
+            )
+            .unwrap();
         })
     });
 

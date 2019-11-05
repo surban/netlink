@@ -4,11 +4,12 @@ use crate::{
     DecodeError, NeighbourTableHeader, NeighbourTableMessageBuffer,
 };
 use failure::ResultExt;
+use smallvec::SmallVec;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct NeighbourTableMessage {
     pub header: NeighbourTableHeader,
-    pub nlas: Vec<Nla>,
+    pub nlas: SmallVec<[Nla; 4]>,
 }
 
 impl Emitable for NeighbourTableMessage {
@@ -29,14 +30,15 @@ impl<'a, T: AsRef<[u8]> + 'a> Parseable<NeighbourTableMessageBuffer<&'a T>>
         Ok(NeighbourTableMessage {
             header: NeighbourTableHeader::parse(buf)
                 .context("failed to parse neighbour table message header")?,
-            nlas: Vec::<Nla>::parse(buf).context("failed to parse neighbour table message NLAs")?,
+            nlas: SmallVec::<[Nla; 4]>::parse(buf)
+                .context("failed to parse neighbour table message NLAs")?,
         })
     }
 }
 
-impl<'a, T: AsRef<[u8]> + 'a> Parseable<NeighbourTableMessageBuffer<&'a T>> for Vec<Nla> {
+impl<'a, T: AsRef<[u8]> + 'a> Parseable<NeighbourTableMessageBuffer<&'a T>> for SmallVec<[Nla; 4]> {
     fn parse(buf: &NeighbourTableMessageBuffer<&'a T>) -> Result<Self, DecodeError> {
-        let mut nlas = vec![];
+        let mut nlas = smallvec![];
         for nla_buf in buf.nlas() {
             nlas.push(Nla::parse(&nla_buf?)?);
         }
