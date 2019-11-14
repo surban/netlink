@@ -7,7 +7,7 @@ use bytes::{BufMut, BytesMut};
 use netlink_packet_core::{
     NetlinkBuffer, NetlinkDeserializable, NetlinkMessage, NetlinkSerializable,
 };
-use tokio_codec::{Decoder, Encoder};
+use tokio_util::codec::{Decoder, Encoder};
 
 pub struct NetlinkCodec<T> {
     phantom: PhantomData<T>,

@@ -1,8 +1,8 @@
 use std::{error::Error as StdError, io, pin::Pin};
-use tokio_codec::{Decoder, Encoder};
+use tokio_util::codec::{Decoder, Encoder};
 
 use bytes::{BufMut, BytesMut};
-use futures::{task::Context, Poll, Sink, Stream};
+use futures::{task::Context, task::Poll, Sink, Stream};
 use log::error;
 use netlink_sys::{Socket, SocketAddr};
 

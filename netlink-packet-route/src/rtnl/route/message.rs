@@ -91,7 +91,7 @@ impl RouteMessage {
             } else {
                 None
             }
-        })
+        }).filter(|(_, prefix_len)| *prefix_len > 0)
     }
 
     /// Returns the destination address prefix, if present.
@@ -104,7 +104,7 @@ impl RouteMessage {
             } else {
                 None
             }
-        })
+        }).filter(|(_, prefix_len)| *prefix_len > 0)
     }
 
     /// Returns the gateway address, if present.
