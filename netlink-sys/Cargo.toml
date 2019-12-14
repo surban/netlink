@@ -34,7 +34,7 @@ mio_socket = ["mio"]
 tokio_socket = ["mio_socket", "tokio", "futures"]
 
 [dev-dependencies]
-tokio = { version = "0.2.0", features = ["io-driver"] }
+tokio = { version = "0.2.0", features = ["full"] }
 netlink-packet-audit = { path = "../netlink-packet-audit" }
 
 [[example]]

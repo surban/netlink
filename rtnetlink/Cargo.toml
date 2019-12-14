@@ -21,4 +21,4 @@ netlink-proto = { path = "../netlink-proto", version = "0.2" }
 [dev-dependencies]
 env_logger = "0.6.2"
 ipnetwork = "0.14.0"
-tokio = "0.2.0"
+tokio = { version = "0.2.0", features = ["full"] }

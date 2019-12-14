@@ -26,6 +26,7 @@ criterion = "0.2.11"
 pcap-file = "0.10.0"
 lazy_static = "1.4.0"
 netlink-sys = { path = "../netlink-sys", version = "0.2" }
+tokio = { version = "0.2.0", features = ["full"] }
 
 [[bench]]
 name = "link_message"

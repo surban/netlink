@@ -5,8 +5,10 @@ use netlink_packet_route::{
 use netlink_sys::{Protocol, Socket, SocketAddr};
 use std::net::Ipv4Addr;
 use std::string::ToString;
+use tokio;
 
-fn main() {
+#[tokio::main]
+async fn main() {
     let mut socket = Socket::new(Protocol::Route).unwrap();
     let _port_number = socket.bind_auto().unwrap().port_number();
     socket.connect(&SocketAddr::new(0, 0)).unwrap();
@@ -27,7 +29,7 @@ fn main() {
     req.serialize(&mut buf[..]);
 
     println!(">>> {:?}", req);
-    socket.send(&buf[..], 0).unwrap();
+    socket.send(&buf[..]).await.unwrap();
 
     let mut receive_buffer = vec![0; 4096];
     let mut offset = 0;
@@ -35,7 +37,7 @@ fn main() {
     let mut ipv4_entries = vec![];
 
     'outer: loop {
-        let size = socket.recv(&mut receive_buffer[..], 0).unwrap();
+        let size = socket.recv(&mut receive_buffer[..]).await.unwrap();
 
         loop {
             let bytes = &receive_buffer[offset..];

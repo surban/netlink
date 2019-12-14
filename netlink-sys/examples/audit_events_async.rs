@@ -12,6 +12,7 @@
 // ```
 
 use std::process;
+use tokio;
 
 use netlink_packet_audit::{
     AuditMessage, NetlinkBuffer, NetlinkMessage, StatusMessage, NLM_F_ACK, NLM_F_REQUEST,
