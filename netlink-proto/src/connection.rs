@@ -3,7 +3,8 @@ use std::{fmt::Debug, io, pin::Pin};
 use futures::{
     channel::mpsc::{UnboundedReceiver, UnboundedSender},
     task::Context,
-    Future, Poll, Sink, Stream,
+    task::Poll,
+    Future, Sink, Stream,
 };
 
 use log::{error, warn};

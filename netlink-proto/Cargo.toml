@@ -12,10 +12,10 @@ repository = "https://github.com/little-dude/netlink"
 description = "async netlink protocol"
 
 [dependencies]
-bytes = "0.4.12"
+bytes = "0.5"
 log = "0.4.8"
-futures-preview = "0.3.0-alpha.18"
-tokio-codec = "0.2.0-alpha"
+futures = "0.3.0"
+tokio-util = { version = "0.2.0", features = ["codec"] }
 failure = "0.1.5"
 netlink-packet-core = { path = "../netlink-packet-core", version = "0.1" }
 
@@ -31,7 +31,7 @@ workaround-audit-bug = []
 
 [dev-dependencies]
 env_logger = "0.6.2"
-tokio = "0.2.0-alpha"
+tokio = "0.2.0"
 netlink-packet-route = { path = "../netlink-packet-route" }
 netlink-packet-audit = { path = "../netlink-packet-audit" }
 

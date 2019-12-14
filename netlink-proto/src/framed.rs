@@ -1,8 +1,8 @@
 use std::{error::Error as StdError, io, pin::Pin};
-use tokio_codec::{Decoder, Encoder};
+use tokio_util::codec::{Decoder, Encoder};
 
 use bytes::{BufMut, BytesMut};
-use futures::{task::Context, Poll, Sink, Stream};
+use futures::{task::Context, task::Poll, Sink, Stream};
 use log::error;
 use netlink_sys::{Socket, SocketAddr};
 
@@ -46,9 +46,10 @@ where
             reader.reserve(INITIAL_READER_CAPACITY);
 
             *in_addr = unsafe {
-                match ready!(socket.poll_recv_from(cx, reader.bytes_mut())) {
+                let mut init_buf = vec![0; INITIAL_READER_CAPACITY];
+                match ready!(socket.poll_recv_from(cx, &mut init_buf)) {
                     Ok((n, addr)) => {
-                        reader.advance_mut(n);
+                        reader.put_slice(&init_buf[..n]);
                         addr
                     }
                     Err(e) => {

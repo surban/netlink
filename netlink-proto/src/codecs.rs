@@ -7,7 +7,7 @@ use bytes::{BufMut, BytesMut};
 use netlink_packet_core::{
     NetlinkBuffer, NetlinkDeserializable, NetlinkMessage, NetlinkSerializable,
 };
-use tokio_codec::{Decoder, Encoder};
+use tokio_util::codec::{Decoder, Encoder};
 
 pub struct NetlinkCodec<T> {
     phantom: PhantomData<T>,
@@ -172,7 +172,10 @@ where
                     ),
                 ));
             }
-            msg.serialize(&mut buf.bytes_mut()[..size]);
+            // TODO: Handle MaybeUninit in message serialization.
+            let mut init_buf = vec![0; size];
+            msg.serialize(&mut init_buf);
+            buf.put_slice(&init_buf);
             trace!(">>> {:?}", msg);
             buf.advance_mut(size);
         }
